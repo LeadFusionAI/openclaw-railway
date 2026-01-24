@@ -7,13 +7,15 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Clawdbot globally (as root, before user switch)
+RUN npm install -g clawdbot@latest
+
 # Create app user
 RUN useradd -m -s /bin/bash clawdbot
+
+# Switch to app user
 USER clawdbot
 WORKDIR /home/clawdbot
-
-# Install Clawdbot globally for this user
-RUN npm install -g clawdbot@latest
 
 # Create necessary directories
 RUN mkdir -p .clawdbot clawd
