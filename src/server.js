@@ -45,17 +45,37 @@ const RATE_LIMIT_MAX_REQUESTS = 30;
 // =============================================================================
 
 function resolveGatewayToken() {
+  // 1. Environment variable takes priority
   const envTok = process.env.OPENCLAW_GATEWAY_TOKEN?.trim();
   if (envTok) return envTok;
 
+  // 2. Read from OpenClaw's config file if it exists (persists across redeploys)
+  const cfgPath = process.env.OPENCLAW_CONFIG_PATH?.trim() || path.join(STATE_DIR, "openclaw.json");
+  try {
+    const cfg = JSON.parse(fs.readFileSync(cfgPath, "utf8"));
+    const cfgToken = cfg?.gateway?.auth?.token?.trim();
+    if (cfgToken) {
+      console.log("[token] Using token from openclaw.json");
+      return cfgToken;
+    }
+  } catch {
+    // Config doesn't exist yet, that's fine
+  }
+
+  // 3. Read from our token file (legacy/backup)
   const tokenPath = path.join(STATE_DIR, "gateway.token");
   try {
     const existing = fs.readFileSync(tokenPath, "utf8").trim();
-    if (existing) return existing;
+    if (existing) {
+      console.log("[token] Using token from gateway.token file");
+      return existing;
+    }
   } catch {
     // ignore
   }
 
+  // 4. Generate new token only if nothing else exists
+  console.log("[token] Generating new gateway token");
   const generated = crypto.randomBytes(32).toString("hex");
   try {
     fs.mkdirSync(STATE_DIR, { recursive: true });
