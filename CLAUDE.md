@@ -247,6 +247,43 @@ docker run -p 8080:8080 \
 
 ---
 
+## Core Sync
+
+Git-based bidirectional sync for The Core (Obsidian vault).
+
+### Environment Variables
+
+```bash
+GITHUB_TOKEN=ghp_xxx           # GitHub PAT with repo access
+CORE_REPO=slayga/Core          # owner/repo format
+CORE_BRANCH=main               # Branch to sync (default: main)
+CORE_SYNC_INTERVAL_MINUTES=15  # Background sync interval (default: 15, 0 to disable)
+```
+
+### API Endpoints
+
+- `GET /setup/api/core/status` - Current sync status and recent commits
+- `POST /setup/api/core/init` - Clone and initialize Core repo
+- `POST /setup/api/core/sync` - Trigger manual sync (pull + push)
+- `POST /setup/api/core/commit` - Commit and push specific changes
+
+### How It Works
+
+1. **Initialize**: Clones the repo to `/data/core`
+2. **Background Sync**: Runs every 15 minutes (configurable)
+3. **Pull**: Fetches remote changes, rebases local changes
+4. **Push**: Commits and pushes local changes
+5. **Conflict Resolution**: Accepts remote version on conflicts (preserves remote, logs conflict)
+
+### Usage via Moltbot
+
+Once Core sync is initialized, Moltbot can:
+- Read notes from `/data/core/`
+- Create/update notes (changes auto-sync)
+- Access The Core as a knowledge base
+
+---
+
 ## Session Log
 
 ### 2025-01-30
@@ -258,6 +295,7 @@ docker run -p 8080:8080 \
 - Rate limiting on /setup/* endpoints
 - Security headers
 - Disabled command execution by default
+- Added Core sync module with git-based bidirectional sync
 
 ---
 

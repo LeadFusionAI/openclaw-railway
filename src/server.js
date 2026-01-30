@@ -19,6 +19,8 @@ import express from "express";
 import httpProxy from "http-proxy";
 import * as tar from "tar";
 
+import coreSync from "./core-sync.js";
+
 // =============================================================================
 // Configuration
 // =============================================================================
@@ -403,6 +405,15 @@ app.get("/setup", requireSetupAuth, (_req, res) => {
     <pre id="log" style="white-space:pre-wrap; background: #0a0a0a; padding: 1rem; border-radius: 8px; margin-top: 1rem; max-height: 400px; overflow-y: auto;"></pre>
   </div>
 
+  <div class="card">
+    <h2>4) Core Sync (Optional)</h2>
+    <p class="muted">Sync your Obsidian vault (The Core) via Git. Requires environment variables: <code>GITHUB_TOKEN</code>, <code>CORE_REPO</code></p>
+    <div id="coreStatus" style="margin: 0.75rem 0; padding: 0.5rem; background: #1a1a1a; border-radius: 6px;">Loading...</div>
+    <button id="coreInit" style="background:#059669;">Initialize Core</button>
+    <button id="coreSync" style="background:#374151; margin-left:0.5rem">Sync Now</button>
+    <div id="coreCommits" style="margin-top: 0.75rem;"></div>
+  </div>
+
   <script src="/setup/app.js"></script>
 </body>
 </html>`);
@@ -482,6 +493,7 @@ app.get("/setup/api/status", requireSetupAuth, async (_req, res) => {
       gatewayTokenSet: Boolean(MOLTBOT_GATEWAY_TOKEN),
       nonRootUser: process.getuid?.() !== 0,
     },
+    coreSync: coreSync.getStatus(),
   });
 });
 
@@ -714,6 +726,57 @@ app.get("/setup/export", requireSetupAuth, async (_req, res) => {
 });
 
 // =============================================================================
+// Core Sync API Routes
+// =============================================================================
+
+app.get("/setup/api/core/status", requireSetupAuth, async (_req, res) => {
+  try {
+    const status = coreSync.getStatus();
+    if (status.initialized) {
+      const commits = await coreSync.getRecentCommits(5);
+      res.json({ ...status, recentCommits: commits });
+    } else {
+      res.json(status);
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/setup/api/core/init", requireSetupAuth, async (_req, res) => {
+  try {
+    const result = await coreSync.initializeCore();
+    // Start background sync after initialization
+    coreSync.startSyncInterval();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post("/setup/api/core/sync", requireSetupAuth, async (_req, res) => {
+  try {
+    const result = await coreSync.syncCore();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post("/setup/api/core/commit", requireSetupAuth, async (req, res) => {
+  try {
+    const { message, files } = req.body || {};
+    if (!message) {
+      return res.status(400).json({ success: false, error: "Message required" });
+    }
+    const result = await coreSync.commitChanges(message, files || []);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// =============================================================================
 // Proxy to Gateway
 // =============================================================================
 
@@ -772,6 +835,14 @@ const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`[wrapper] Gateway token: ${MOLTBOT_GATEWAY_TOKEN ? "(set)" : "(missing)"}`);
   console.log(`[wrapper] Setup password: ${SETUP_PASSWORD ? "(set)" : "(MISSING - SECURITY ISSUE)"}`);
   console.log(`[wrapper] Running as UID: ${process.getuid?.() ?? "unknown"}`);
+
+  // Start Core sync if already initialized
+  if (coreSync.isInitialized()) {
+    console.log(`[wrapper] Core sync initialized, starting background sync...`);
+    coreSync.startSyncInterval();
+  } else {
+    console.log(`[wrapper] Core sync not initialized (configure CORE_REPO and GITHUB_TOKEN)`);
+  }
 });
 
 server.on("upgrade", async (req, socket, head) => {
@@ -790,6 +861,7 @@ server.on("upgrade", async (req, socket, head) => {
 
 process.on("SIGTERM", () => {
   console.log("[wrapper] SIGTERM received, shutting down...");
+  coreSync.stopSyncInterval();
   try {
     if (gatewayProc) gatewayProc.kill("SIGTERM");
   } catch {
@@ -800,6 +872,7 @@ process.on("SIGTERM", () => {
 
 process.on("SIGINT", () => {
   console.log("[wrapper] SIGINT received, shutting down...");
+  coreSync.stopSyncInterval();
   try {
     if (gatewayProc) gatewayProc.kill("SIGTERM");
   } catch {
