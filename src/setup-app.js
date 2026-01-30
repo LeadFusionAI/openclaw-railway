@@ -227,6 +227,28 @@
       .catch(function (e) { logEl.textContent += 'Error: ' + String(e) + '\n'; });
   };
 
+  var gatewayRestartBtn = document.getElementById('gatewayRestart');
+  if (gatewayRestartBtn) {
+    gatewayRestartBtn.onclick = function () {
+      logEl.textContent += '\nRestarting gateway...\n';
+      fetch('/setup/api/gateway/restart', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' }
+      }).then(function (res) { return res.json(); })
+        .then(function (j) {
+          if (j.ok) {
+            logEl.textContent += 'Gateway restarted successfully.\n';
+          } else {
+            logEl.textContent += 'Error: ' + (j.error || 'Unknown error') + '\n';
+          }
+        })
+        .catch(function (e) {
+          logEl.textContent += 'Error: ' + String(e) + '\n';
+        });
+    };
+  }
+
   // Core sync buttons
   var coreInitBtn = document.getElementById('coreInit');
   if (coreInitBtn) {

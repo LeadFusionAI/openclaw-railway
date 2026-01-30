@@ -406,6 +406,7 @@ app.get("/setup", requireSetupAuth, (_req, res) => {
     <h2>3) Run onboarding</h2>
     <button id="run">Run setup</button>
     <button id="pairingApprove" style="background:#374151; margin-left:0.5rem">Approve pairing</button>
+    <button id="gatewayRestart" style="background:#374151; margin-left:0.5rem">Restart gateway</button>
     <button id="reset" style="background:#7f1d1d; margin-left:0.5rem">Reset setup</button>
     <pre id="log" style="white-space:pre-wrap; background: #0a0a0a; padding: 1rem; border-radius: 8px; margin-top: 1rem; max-height: 400px; overflow-y: auto;"></pre>
   </div>
@@ -708,6 +709,29 @@ app.post("/setup/api/reset", requireSetupAuth, async (_req, res) => {
   } catch (err) {
     res.status(500).type("text/plain").send(String(err));
   }
+});
+
+app.post("/setup/api/gateway/restart", requireSetupAuth, async (_req, res) => {
+  try {
+    if (!isConfigured()) {
+      return res.status(400).json({ ok: false, error: "Not configured yet" });
+    }
+    await restartGateway();
+    res.json({ ok: true, message: "Gateway restarted" });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: String(err) });
+  }
+});
+
+app.get("/setup/api/gateway/status", requireSetupAuth, async (_req, res) => {
+  const running = gatewayProc !== null;
+  const configured = isConfigured();
+  res.json({
+    configured,
+    running,
+    target: GATEWAY_TARGET,
+    pid: gatewayProc?.pid || null,
+  });
 });
 
 app.get("/setup/export", requireSetupAuth, async (_req, res) => {
