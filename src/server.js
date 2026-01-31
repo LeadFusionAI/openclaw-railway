@@ -460,16 +460,22 @@ function runCmd(cmd, args, opts = {}) {
       },
     });
 
-    let out = "";
-    proc.stdout?.on("data", (d) => (out += d.toString("utf8")));
-    proc.stderr?.on("data", (d) => (out += d.toString("utf8")));
+    let stdout = "";
+    let stderr = "";
+    proc.stdout?.on("data", (d) => (stdout += d.toString("utf8")));
+    proc.stderr?.on("data", (d) => (stderr += d.toString("utf8")));
 
     proc.on("error", (err) => {
-      out += `\n[spawn error] ${String(err)}\n`;
-      resolve({ code: 127, output: out });
+      stderr += `\n[spawn error] ${String(err)}\n`;
+      resolve({ code: 127, output: stdout, stdout, stderr });
     });
 
-    proc.on("close", (code) => resolve({ code: code ?? 0, output: out }));
+    proc.on("close", (code) => resolve({
+      code: code ?? 0,
+      output: stdout + stderr, // combined for backwards compat
+      stdout,
+      stderr
+    }));
   });
 }
 
@@ -478,9 +484,8 @@ app.get("/setup/api/status", requireSetupAuth, async (_req, res) => {
   const channelsHelp = await runCmd(OPENCLAW_NODE, openclawArgs(["channels", "add", "--help"]));
 
   const authGroups = [
-    { value: "anthropic", label: "Anthropic", hint: "Claude Code CLI + API key", options: [
-      { value: "claude-cli", label: "Anthropic token (Claude Code CLI)" },
-      { value: "token", label: "Anthropic token (paste setup-token)" },
+    { value: "anthropic", label: "Anthropic", hint: "API key or OAuth token", options: [
+      { value: "token", label: "Anthropic token (from claude setup-token)" },
       { value: "apiKey", label: "Anthropic API key" }
     ]},
     { value: "openai", label: "OpenAI", hint: "Codex OAuth + API key", options: [
@@ -508,11 +513,14 @@ app.get("/setup/api/status", requireSetupAuth, async (_req, res) => {
     ]},
   ];
 
+  // Use stdout only to avoid error spam in the UI
+  const versionStr = (version.stdout || version.output || "").trim().split("\n")[0] || "unknown";
+
   res.json({
     configured: isConfigured(),
     gatewayTarget: GATEWAY_TARGET,
-    openclawVersion: version.output.trim(),
-    channelsAddHelp: channelsHelp.output,
+    openclawVersion: versionStr,
+    channelsAddHelp: channelsHelp.stdout || channelsHelp.output,
     authGroups,
     security: {
       setupPasswordSet: Boolean(SETUP_PASSWORD),
@@ -614,6 +622,7 @@ app.post("/setup/api/run", requireSetupAuth, async (req, res) => {
       // Set core gateway configuration
       await runCmd(OPENCLAW_NODE, openclawArgs(["config", "set", "gateway.auth.mode", "token"]));
       await runCmd(OPENCLAW_NODE, openclawArgs(["config", "set", "gateway.auth.token", OPENCLAW_GATEWAY_TOKEN]));
+      await runCmd(OPENCLAW_NODE, openclawArgs(["config", "set", "gateway.remote.token", OPENCLAW_GATEWAY_TOKEN])); // MUST match auth.token
       await runCmd(OPENCLAW_NODE, openclawArgs(["config", "set", "gateway.bind", "loopback"]));
       await runCmd(OPENCLAW_NODE, openclawArgs(["config", "set", "gateway.port", String(INTERNAL_GATEWAY_PORT)]));
 
