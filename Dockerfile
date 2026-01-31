@@ -70,6 +70,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
   && corepack enable && corepack prepare pnpm@latest --activate \
   && rm -rf /var/lib/apt/lists/*
 
+# Install Tailscale for secure remote access to gateway
+RUN curl -fsSL https://tailscale.com/install.sh | sh
+
 # Create non-root user with specific UID for security
 # Using uid 1001 to avoid conflicts with common system users
 RUN groupadd -g 1001 openclaw \
