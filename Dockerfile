@@ -1,6 +1,6 @@
 # =============================================================================
-# HARDENED OPENCLAW RAILWAY TEMPLATE
-# Multi-stage build with non-root user, pnpm, and Claude CLI
+# OPENCLAW RAILWAY TEMPLATE
+# Multi-stage build with non-root user and security hardening
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -51,17 +51,13 @@ FROM oven/bun:1-debian AS runtime
 
 ENV NODE_ENV=production
 
-# Install runtime dependencies + tools for administration
+# Install runtime dependencies (minimal)
 RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     git \
-    jq \
-    vim-tiny \
-    less \
     procps \
-    htop \
   && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js (required for openclaw CLI) and pnpm (required for openclaw update)
@@ -70,17 +66,13 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
   && corepack enable && corepack prepare pnpm@latest --activate \
   && rm -rf /var/lib/apt/lists/*
 
-# Install Tailscale for secure remote access to gateway
-RUN curl -fsSL https://tailscale.com/install.sh | sh
-
 # Create non-root user with specific UID for security
-# Using uid 1001 to avoid conflicts with common system users
 RUN groupadd -g 1001 openclaw \
   && useradd -u 1001 -g openclaw -m -s /bin/bash openclaw
 
-# Create data directory structure and tailscale socket dir
-RUN mkdir -p /data/.openclaw /data/workspace /data/core /data/tailscale \
-  && mkdir -p /var/run/tailscale \
+# Create data directory structure
+RUN mkdir -p /data/.openclaw /data/workspace /data/core \
+  && chmod 700 /data/.openclaw \
   && chown -R openclaw:openclaw /data
 
 # Copy built openclaw from build stage
@@ -88,7 +80,6 @@ COPY --from=openclaw-build /openclaw /openclaw
 RUN chown -R openclaw:openclaw /openclaw
 
 # Create openclaw CLI wrapper that always runs as the openclaw user
-# This prevents permission issues when root (SSH) runs openclaw commands
 RUN printf '%s\n' \
   '#!/usr/bin/env bash' \
   'if [ "$(id -u)" = "0" ]; then' \
@@ -99,46 +90,27 @@ RUN printf '%s\n' \
   > /usr/local/bin/openclaw \
   && chmod +x /usr/local/bin/openclaw
 
-# Note: Claude Code CLI can be installed manually via SSH if needed:
-#   npm install -g @anthropic-ai/claude-code && claude setup-token
-
-# Set up wrapper application
+# Set up health check server
 WORKDIR /app
 
-# Copy wrapper dependencies and install with bun
 COPY package.json ./
-RUN bun install --production
-
-# Copy wrapper source
 COPY src ./src
-
-# Set ownership
-RUN chown -R openclaw:openclaw /app
-
-# Copy entrypoint and watcher scripts
 COPY entrypoint.sh /entrypoint.sh
 COPY config-watcher.sh /app/config-watcher.sh
-RUN chmod +x /entrypoint.sh /app/config-watcher.sh
 
-# NOTE: We do NOT use USER here because entrypoint needs root to fix volume permissions
-# The entrypoint script drops privileges to openclaw user after setup
+RUN chmod +x /entrypoint.sh /app/config-watcher.sh \
+  && chown -R openclaw:openclaw /app
 
 # Environment defaults
 ENV OPENCLAW_STATE_DIR=/data/.openclaw
 ENV OPENCLAW_WORKSPACE_DIR=/data/workspace
 ENV OPENCLAW_CORE_DIR=/data/core
-ENV OPENCLAW_PUBLIC_PORT=8080
 ENV PORT=8080
-ENV INTERNAL_GATEWAY_PORT=18789
 
-# Add openclaw user's local bin to PATH (for claude CLI)
-ENV PATH="/home/openclaw/.local/bin:/usr/local/bin:${PATH}"
-
-# Health check endpoint
+# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD curl -sf http://localhost:8080/healthz || exit 1
 
 EXPOSE 8080
 
-# Start via entrypoint (fixes permissions, then drops to openclaw user)
 ENTRYPOINT ["/entrypoint.sh"]
