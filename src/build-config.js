@@ -51,20 +51,21 @@ function buildConfig() {
   }
 
   // Ensure structure exists
-  config.agent = config.agent || {};
+  config.agents = config.agents || {};
+  config.agents.defaults = config.agents.defaults || {};
   config.channels = config.channels || {};
   config.gateway = config.gateway || {};
 
   // --- LLM Provider (just set the API key, OpenClaw auto-detects) ---
   // OpenClaw reads standard env vars directly, but we can set model if specified
   if (process.env.LLM_PRIMARY_MODEL) {
-    config.agent.model = config.agent.model || {};
-    config.agent.model.primary = process.env.LLM_PRIMARY_MODEL;
+    config.agents.defaults.model = config.agents.defaults.model || {};
+    config.agents.defaults.model.primary = process.env.LLM_PRIMARY_MODEL;
   }
 
   if (process.env.LLM_FALLBACK_MODELS) {
-    config.agent.model = config.agent.model || {};
-    config.agent.model.fallbacks = process.env.LLM_FALLBACK_MODELS.split(',').map(s => s.trim());
+    config.agents.defaults.model = config.agents.defaults.model || {};
+    config.agents.defaults.model.fallbacks = process.env.LLM_FALLBACK_MODELS.split(',').map(s => s.trim());
   }
 
   // --- Telegram ---
