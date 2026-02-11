@@ -35,7 +35,9 @@
       // No Docker sandbox on Railway - rely on tool restrictions
       sandbox: {
         mode: "off"
-      }
+      },
+      // Skip auto-creating bootstrap files - we provide our own templates
+      skipBootstrap: true
     }
   },
 
