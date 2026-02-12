@@ -57,8 +57,7 @@ function buildConfig() {
   config.channels = config.channels || {};
   config.gateway = config.gateway || {};
 
-  // --- LLM Provider (just set the API key, OpenClaw auto-detects) ---
-  // OpenClaw reads standard env vars directly, but we can set model if specified
+  // --- LLM Model (required - user must specify) ---
   if (process.env.LLM_PRIMARY_MODEL) {
     config.agents.defaults.model = config.agents.defaults.model || {};
     config.agents.defaults.model.primary = process.env.LLM_PRIMARY_MODEL;
@@ -172,6 +171,15 @@ function main() {
   if (!hasLLM) {
     console.log('[build-config] WARNING: No LLM provider configured');
     console.log('[build-config] Set at least one of:', LLM_PROVIDERS.join(', '));
+  }
+
+  // Check for model selection (required)
+  if (!process.env.LLM_PRIMARY_MODEL) {
+    console.log('[build-config] WARNING: LLM_PRIMARY_MODEL not set');
+    console.log('[build-config] You must specify a model matching your provider.');
+    console.log('[build-config] Format: LLM_PRIMARY_MODEL=provider/model-name');
+    console.log('[build-config] Check your provider docs for available model IDs.');
+    console.log('[build-config] See docs/environment.md for provider links.');
   }
 
   const config = buildConfig();

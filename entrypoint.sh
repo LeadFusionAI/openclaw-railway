@@ -52,9 +52,14 @@ start_gateway() {
   chmod 600 "$CONFIG_FILE"
   chown openclaw:openclaw "$CONFIG_FILE"
 
-  # Run doctor --fix to apply any pending migrations
+  # Run doctor --fix to apply any pending migrations, then restore our config
   echo "[entrypoint] Running doctor --fix..."
+  cp "$CONFIG_FILE" /tmp/openclaw-config-backup.json
   su openclaw -c "cd /data/workspace && openclaw doctor --fix" || true
+
+  # Restore our config if doctor mangled it
+  echo "[entrypoint] Restoring config from env vars..."
+  node /app/src/build-config.js
 
   # Start gateway in background, streaming logs to stdout/stderr
   su openclaw -c "cd /data/workspace && openclaw gateway run --port 18789 2>&1 | while read line; do echo \"[gateway] \$line\"; done" &

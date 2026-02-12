@@ -58,16 +58,38 @@ Set the key for your preferred provider(s). You can set multiple for fallbacks.
 | `AWS_SECRET_ACCESS_KEY` | AWS secret key |
 | `AWS_REGION` | AWS region (e.g., us-east-1) |
 
-## Model Selection
+## Model Selection (Required)
 
-Configure which models to use for different tasks. Format: `provider/model-name`
+You **must** set `LLM_PRIMARY_MODEL` to match your provider.
 
-| Variable | Purpose | Example |
-|----------|---------|---------|
-| `LLM_PRIMARY_MODEL` | Main thinking model | `openrouter/anthropic/claude-sonnet-4` |
-| `LLM_HEARTBEAT_MODEL` | Cheap model for periodic check-ins | `groq/llama-3.1-8b-instant` |
-| `LLM_SUBAGENT_MODEL` | Model for delegated tasks | `openrouter/meta-llama/llama-3.1-70b` |
-| `LLM_FALLBACK_MODELS` | Comma-separated fallback list | `groq/llama-3.1-70b,openrouter/meta-llama/llama-3.1-8b` |
+| Variable | Purpose |
+|----------|---------|
+| `LLM_PRIMARY_MODEL` | **Required** - Main model for conversations |
+| `LLM_HEARTBEAT_MODEL` | Optional - Cheap model for periodic check-ins |
+| `LLM_SUBAGENT_MODEL` | Optional - Model for delegated tasks |
+| `LLM_FALLBACK_MODELS` | Optional - Comma-separated fallback list |
+
+### Format
+
+```
+LLM_PRIMARY_MODEL=provider/model-name
+```
+
+Example: `LLM_PRIMARY_MODEL=groq/llama-3.3-70b-versatile`
+
+### Finding Model Names
+
+Check your provider's documentation for current model IDs:
+- **Groq**: https://console.groq.com/docs/models
+- **OpenRouter**: https://openrouter.ai/models
+- **Anthropic**: https://docs.anthropic.com/en/docs/models
+- **OpenAI**: https://platform.openai.com/docs/models
+- **Google**: https://ai.google.dev/models
+- **DeepSeek**: https://platform.deepseek.com/docs
+- **Kimi/Moonshot**: https://platform.moonshot.cn/docs
+- **ZAI**: https://docs.zai.dev/models
+
+**Tip:** Start with a fast, cheap model to verify your setup works, then upgrade as needed.
 
 ## Channels
 
