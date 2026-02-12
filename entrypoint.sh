@@ -52,22 +52,6 @@ start_gateway() {
   chmod 600 "$CONFIG_FILE"
   chown openclaw:openclaw "$CONFIG_FILE"
 
-  # Register channels via CLI (config alone isn't enough)
-  if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
-    echo "[entrypoint] Registering Telegram channel..."
-    su openclaw -c "openclaw channels add --channel telegram --token '$TELEGRAM_BOT_TOKEN'" || true
-  fi
-
-  if [ -n "$DISCORD_BOT_TOKEN" ]; then
-    echo "[entrypoint] Registering Discord channel..."
-    su openclaw -c "openclaw channels add --channel discord --token '$DISCORD_BOT_TOKEN'" || true
-  fi
-
-  if [ -n "$SLACK_BOT_TOKEN" ] && [ -n "$SLACK_APP_TOKEN" ]; then
-    echo "[entrypoint] Registering Slack channel..."
-    su openclaw -c "openclaw channels add --channel slack --token '$SLACK_BOT_TOKEN' --app-token '$SLACK_APP_TOKEN'" || true
-  fi
-
   # Start gateway in background, streaming logs to stdout/stderr
   su openclaw -c "cd /data/workspace && openclaw gateway run --port 18789 2>&1 | while read line; do echo \"[gateway] \$line\"; done" &
   GATEWAY_PID=$!

@@ -88,6 +88,11 @@ function buildConfig() {
     // Groups require mention by default
     config.channels.telegram.groups = config.channels.telegram.groups || {};
     config.channels.telegram.groups['*'] = { requireMention: true };
+
+    // Enable the Telegram plugin (separate from channel config)
+    config.plugins = config.plugins || {};
+    config.plugins.entries = config.plugins.entries || {};
+    config.plugins.entries.telegram = { enabled: true };
   }
 
   // --- Discord ---
