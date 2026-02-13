@@ -11,6 +11,7 @@ Each tier is earned by hitting the ceiling naturally — not upsold. When you fi
 **What it can do:**
 - Chat via Telegram/Discord/Slack
 - Read and write files in workspace (markdown notes, memory)
+- List directory contents (`ls` only — no other shell commands)
 - Retrieve memories from files (file-based, not semantic search)
 
 **What this looks like in practice:**
@@ -23,7 +24,7 @@ Each tier is earned by hitting the ceiling naturally — not upsold. When you fi
 **When this is enough:** You want a thinking partner, writing assistant, or personal knowledge base. You don't need it to look things up or run commands.
 
 **What's blocked:**
-- Shell commands (`exec`)
+- Shell commands beyond `ls` (`exec` is allowlisted to `ls` only)
 - Web browsing (`browser`)
 - Web fetching (`web_fetch`, `web_search`)
 - Semantic memory search (`memory_search` — requires embeddings provider)
@@ -38,12 +39,17 @@ Each tier is earned by hitting the ceiling naturally — not upsold. When you fi
   agents: {
     defaults: {
       tools: {
-        allow: ["read", "write", "edit", "memory_get"],
-        deny: ["exec", "process", "browser", "nodes", "web_search", "web_fetch", "gateway", "memory_search", "agents_list", "sessions_spawn"]
+        allow: ["read", "write", "edit", "memory_get", "exec"],
+        deny: ["process", "browser", "nodes", "web_search", "web_fetch", "gateway", "memory_search", "agents_list", "sessions_spawn"]
       }
     }
   },
   tools: {
+    exec: {
+      security: "allowlist",
+      ask: "never",
+      allowlist: ["/usr/bin/ls", "/bin/ls"]
+    },
     fs: {
       enabled: true,
       blocklist: ["/proc", "/etc", "/root", "/home", ".openclaw", ".ssh", ".aws", ".env"]
@@ -108,7 +114,7 @@ openclaw gateway run --port 18789 &
 Enable restricted shell access for development tasks.
 
 **Additional capabilities:**
-- Run whitelisted shell commands (ls, cat, grep, git, etc.)
+- Run whitelisted shell commands (cat, grep, find, git, etc. — `ls` is already available at Tier 0)
 - Work with code repositories
 - Persistent model changes via `openclaw models set` (no redeploy needed)
 - OAuth provider setup (Google AI, etc.)
@@ -117,7 +123,7 @@ Enable restricted shell access for development tasks.
 - "Clone this repo and explain the architecture" — agent runs git, reads code, maps the structure
 - "Find all TODO comments in this project" — agent greps through files
 - "Set up the DeepSeek model permanently" — agent runs `openclaw models set deepseek/model-name`
-- "What's in this directory?" — agent runs ls, explores the filesystem
+- "Show me the last 20 lines of this log" — agent runs tail on the file
 
 **When to upgrade from Tier 1:** You're working on code or technical projects and keep wishing the agent could just run a command instead of telling you what to run. If you find yourself being the agent's hands, Tier 2 gives it (limited) hands of its own.
 

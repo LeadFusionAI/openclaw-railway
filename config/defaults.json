@@ -5,10 +5,18 @@
     }
   },
   "tools": {
-    "allow": ["read", "write", "edit", "memory_get"],
-    "deny": ["exec", "process", "browser", "nodes", "web_search", "web_fetch", "gateway", "memory_search", "agents_list", "sessions_spawn"],
+    "allow": ["read", "write", "edit", "memory_get", "exec"],
+    "deny": ["process", "browser", "nodes", "web_search", "web_fetch", "gateway", "memory_search", "agents_list", "sessions_spawn"],
     "elevated": {
       "enabled": false
+    },
+    "exec": {
+      "security": "allowlist",
+      "ask": "never",
+      "allowlist": [
+        "/usr/bin/ls",
+        "/bin/ls"
+      ]
     },
     "fs": {
       "enabled": true,

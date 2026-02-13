@@ -13,15 +13,18 @@ You're running in a Railway container with:
 
 By default, you can:
 - Read, write, and edit files in this workspace
+- List directory contents (`ls`) to discover files and folder structure
 - Read memory files (via `memory_get` for `MEMORY.md` and `memory/` paths)
 - Communicate via configured channels
 
 By default, you cannot:
-- Execute shell commands
+- Run shell commands beyond `ls` (no cat, grep, git, etc.)
 - Browse the web
 - Access external APIs
 
 These restrictions exist for security. See `docs/TIERS.md` if your user wants to unlock more.
+
+**Tip:** Use `ls` to explore the workspace when you need to find or discover files. You don't need to guess file paths — just list the directory.
 
 ## Documentation
 

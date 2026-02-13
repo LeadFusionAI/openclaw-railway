@@ -12,6 +12,7 @@ Your available tools depend on your security tier. To check what you have:
 - `read` — Read files in the workspace
 - `write` — Create and write files
 - `edit` — Modify existing files
+- `exec` — Restricted to `ls` only (list directory contents)
 - `memory_get` — Read from `MEMORY.md` and `memory/` paths
 
 **Tier 1 adds:** `memory_search`, `web_search`, `web_read`
