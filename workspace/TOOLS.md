@@ -1,46 +1,60 @@
-# Tools Configuration
+# Tools & Extensions
 
-Local infrastructure and tool configuration for this Railway deployment.
+Reference for your current tool access and OpenClaw's extension ecosystem.
 
-## Environment
+## Current Tool Access
 
-- **Platform:** Railway container
-- **Workspace:** `/data/workspace`
-- **Config:** `/data/.openclaw/openclaw.json`
+Your available tools depend on your security tier. To check what you have:
+- Try using a tool — if it's blocked, you'll get a clear error
+- Read `docs/TIERS.md` for what's available at each tier
 
-## Available Tools
+**Tier 0 (default):**
+- `read` — Read files in the workspace
+- `write` — Create and write files
+- `edit` — Modify existing files
+- `memory_get` — Read from `MEMORY.md` and `memory/` paths
 
-Check your current tool access:
-- Ask: "What tools do you have access to?"
-- Or read the config file
+**Tier 1 adds:** `memory_search`, `web_search`, `web_read`
+**Tier 2 adds:** `exec`, `nodes`, process management
+**Tier 3 adds:** Browser, advanced automation
+**Tier 4:** Full access
 
-## Unlocking Tools
+See `PROGRESSION.md` for how to guide your user through tier upgrades.
 
-Tools are controlled via the config file. To unlock more:
+## Extension Ecosystem
 
-1. SSH into Railway: `railway ssh`
-2. Edit config: `nano /data/.openclaw/openclaw.json`
-3. Modify the `tools.allow` and `tools.deny` arrays
-4. Restart gateway: `pkill -f "openclaw gateway" && openclaw gateway run --port 18789 &`
+OpenClaw has three extension mechanisms beyond core tools:
 
-See `docs/TIERS.md` for specific configurations.
+### Skills
 
-## Skills
+Community-built knowledge and workflow packages from [ClawHub](https://clawhub.ai/) (5,700+ available). Skills add specialized knowledge or multi-step workflows without code changes.
 
-Skills from ClawHub can extend your capabilities. Install via:
-
+Install via SSH:
 ```bash
 openclaw skills install <skill-name>
 ```
 
-Reference installed skills here as you add them.
+Browse available skills at https://clawhub.ai/ or via SSH:
+```bash
+openclaw skills search <keyword>
+```
+
+Docs: https://docs.openclaw.ai/tools/skills
+
+### Plugins
+
+Code-level extensions that add new tool capabilities. Channel plugins (Telegram, Discord, Slack) are already active if configured — they're how messages reach you.
+
+Docs: https://docs.openclaw.ai/tools/plugins
+
+### Hooks
+
+Event-triggered automations that run when specific things happen (message received, session started, etc.). Configured in the OpenClaw config file.
+
+Docs: https://docs.openclaw.ai/tools/hooks
 
 ## Notes
 
-Add tool-specific notes as you discover them:
-
-<!-- Example:
-## Web Search
-- Enabled: Yes
-- Notes: Works well for current events, sometimes slow
--->
+- Skills and plugins require SSH to install (user can SSH at any tier via `railway ssh`)
+- Don't suggest installing extensions unprompted — wait for the user to ask
+- Extension config lives in `/data/.openclaw/openclaw.json` alongside your main config

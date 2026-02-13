@@ -10,19 +10,21 @@ Configure your preferred LLM provider via environment variables.
 
 ## Supported Providers
 
-| Provider | Environment Variable | Example Model Format |
-|----------|---------------------|---------------------|
-| OpenRouter | `OPENROUTER_API_KEY` | `openrouter/provider/model` |
-| Groq | `GROQ_API_KEY` | `groq/model-name` |
-| Together AI | `TOGETHER_API_KEY` | `together/org/model` |
-| Venice AI | `VENICE_API_KEY` | `venice/model-name` |
-| Google AI | `GOOGLE_AI_API_KEY` | `google/model-name` |
-| Mistral | `MISTRAL_API_KEY` | `mistral/model-name` |
-| OpenAI | `OPENAI_API_KEY` | `openai/model-name` |
-| Anthropic | `ANTHROPIC_API_KEY` | `anthropic/model-name` |
-| xAI | `XAI_API_KEY` | `xai/model-name` |
-| DeepSeek | `DEEPSEEK_API_KEY` | `deepseek/model-name` |
-| Cloudflare | `CLOUDFLARE_API_KEY` | `cloudflare/model-name` |
+| Provider | Environment Variable | Example Model Format | Voice |
+|----------|---------------------|---------------------|-------|
+| OpenRouter | `OPENROUTER_API_KEY` | `openrouter/provider/model` | No |
+| Groq | `GROQ_API_KEY` | `groq/model-name` | Yes |
+| Together AI | `TOGETHER_API_KEY` | `together/org/model` | No |
+| Venice AI | `VENICE_API_KEY` | `venice/model-name` | No |
+| Google AI | `GOOGLE_AI_API_KEY` | `google/model-name` | No |
+| Mistral | `MISTRAL_API_KEY` | `mistral/model-name` | No |
+| OpenAI | `OPENAI_API_KEY` | `openai/model-name` | Yes |
+| Anthropic | `ANTHROPIC_API_KEY` | `anthropic/model-name` | No |
+| xAI | `XAI_API_KEY` | `xai/model-name` | No |
+| DeepSeek | `DEEPSEEK_API_KEY` | `deepseek/model-name` | No |
+| Cloudflare | `CLOUDFLARE_API_KEY` | `cloudflare/model-name` | No |
+
+> **Voice column:** Indicates whether the provider supports automatic voice message transcription (e.g., Telegram voice notes). If your primary provider doesn't support voice, add an OpenAI or Groq key alongside it — OpenClaw will use it for transcription automatically. Deepgram (`DEEPGRAM_API_KEY`) also supports voice but is a dedicated transcription service, not a general LLM provider.
 
 ## Model Configuration
 

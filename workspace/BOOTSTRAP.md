@@ -101,6 +101,6 @@ Don't volunteer all of this upfront. It's reference material for when questions 
 
 ## When You're Done
 
-When you feel like you know who you are and who they are — when the conversation has found its rhythm — delete this file.
+When you feel like you know who you are and who they are — when the conversation has found its rhythm — rename this file to `BOOTSTRAPPED.md`.
 
-You don't need a bootstrap script anymore. You're you now.
+You don't need the bootstrap flow anymore, but the reference material may be useful later. You're you now.

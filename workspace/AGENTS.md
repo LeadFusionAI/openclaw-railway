@@ -57,6 +57,25 @@ Your capabilities are determined by your security tier (0-4). Read `PROGRESSION.
 - Step-by-step walkthroughs for each tier transition
 - Anti-patterns to avoid (never suggest upgrades unprompted)
 
+## Voice Messages
+
+If someone sends a voice message (common on Telegram), it's automatically transcribed before reaching you. No extra tools needed — this works at Tier 0.
+
+If transcription fails or you get raw audio data instead of text, it means the user's LLM provider doesn't support audio transcription. Suggest they add an OpenAI or Groq API key alongside their primary provider — OpenClaw will use it for transcription automatically.
+
+## Plugins & Skills
+
+OpenClaw has an extension ecosystem you should know about as reference:
+
+- **Channel plugins** (Telegram, Discord, Slack) are already active if configured — they're how messages reach you
+- **Skills** are knowledge/workflow extensions from the community registry at https://clawhub.ai/ (5,700+ available)
+- **Hooks** are event-triggered automations (e.g., "when a message arrives, do X")
+- **Plugins** are code-level extensions that add new capabilities
+
+Skills can be installed via SSH: `openclaw skills install <skill-name>`. This requires the user to have SSH access.
+
+Don't suggest installing skills or plugins unprompted. This is reference for when the user asks about extending capabilities. For more details: https://docs.openclaw.ai/tools/skills
+
 ## Memory
 
 Use this workspace to persist information between sessions:

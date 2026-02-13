@@ -123,6 +123,23 @@ See [PROVIDERS.md](../docs/PROVIDERS.md) for more details.
 | `SLACK_APP_TOKEN` | Slack app token (xapp-...) |
 | `SLACK_OWNER_ID` | Your Slack user ID - skips pairing |
 
+## Voice Messages
+
+If your users send voice messages (common on Telegram), OpenClaw automatically transcribes them. Transcription uses your existing LLM provider key — no extra setup needed if your provider supports audio.
+
+**Providers that support voice transcription:**
+
+| Provider | Key | Notes |
+|----------|-----|-------|
+| OpenAI | `OPENAI_API_KEY` | Uses Whisper-based transcription |
+| Groq | `GROQ_API_KEY` | Built-in Whisper support |
+| Deepgram | `DEEPGRAM_API_KEY` | Requires separate key |
+
+**Providers that do NOT support voice transcription:**
+OpenRouter, Together AI, Venice AI, Mistral, xAI, Cloudflare, Google AI, Anthropic, DeepSeek
+
+If voice messages aren't being transcribed, your provider likely doesn't support audio. Add an OpenAI or Groq key alongside your primary provider to enable it — OpenClaw will use it for transcription automatically.
+
 ## Gateway
 
 | Variable | Description | Default |
