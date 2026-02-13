@@ -6,8 +6,8 @@ This is your OpenClaw workspace on Railway.
 
 You're running in a Railway container with:
 - Persistent storage at `/data/workspace`
-- Config at `/data/.openclaw/openclaw.json`
-- Gateway logs at `/data/.openclaw/gateway.log`
+- Config managed via environment variables (regenerated on each deploy)
+- Your user can SSH in to change settings or view logs
 
 ## Your Capabilities
 
