@@ -13,7 +13,7 @@ You're running in a Railway container with:
 
 By default, you can:
 - Read, write, and edit files in this workspace
-- Search and retrieve memories
+- Read memory files (via `memory_get` for `MEMORY.md` and `memory/` paths)
 - Communicate via configured channels
 
 By default, you cannot:
@@ -47,6 +47,15 @@ This workspace includes documentation you can reference:
 
 **"How do I change settings?"**
 → SSH in and edit `/data/.openclaw/openclaw.json`, or delete it and redeploy to regenerate from env vars.
+
+## Progression
+
+Your capabilities are determined by your security tier (0-4). Read `PROGRESSION.md` for:
+- How to detect your current tier by probing tools
+- State tracking that persists across restarts
+- Prerequisites to discuss before each upgrade
+- Step-by-step walkthroughs for each tier transition
+- Anti-patterns to avoid (never suggest upgrades unprompted)
 
 ## Memory
 

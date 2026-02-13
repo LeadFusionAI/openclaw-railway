@@ -221,7 +221,7 @@ openclaw configure --section tools
       "allowlist": ["ls", "cat", "grep", "find"]
     },
     "fs": {
-      "blocklist": [".ssh", ".aws", ".env", ".openclaw"]
+      "blocklist": ["/proc", ".ssh", ".aws", ".env", ".openclaw"]
     }
   }
 }
@@ -252,8 +252,8 @@ For Railway with channel access:
     "fs": {
       "enabled": true,
       "blocklist": [
-        ".ssh", ".aws", ".env", ".openclaw",
-        "/etc", "/root", "/home"
+        "/proc", "/etc", "/root", "/home",
+        ".ssh", ".aws", ".env", ".openclaw"
       ]
     }
   },

@@ -5,10 +5,23 @@
     }
   },
   "tools": {
-    "allow": ["read", "write", "edit", "memory_search", "memory_get"],
-    "deny": ["exec", "process", "browser", "nodes", "web_search", "web_fetch", "gateway"],
+    "allow": ["read", "write", "edit", "memory_get"],
+    "deny": ["exec", "process", "browser", "nodes", "web_search", "web_fetch", "gateway", "memory_search", "agents_list", "sessions_spawn"],
     "elevated": {
       "enabled": false
+    },
+    "fs": {
+      "enabled": true,
+      "blocklist": [
+        "/proc",
+        "/etc",
+        "/root",
+        "/home",
+        ".openclaw",
+        ".ssh",
+        ".aws",
+        ".env"
+      ]
     }
   },
   "session": {

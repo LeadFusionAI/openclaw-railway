@@ -1,5 +1,7 @@
 # Security Tiers
 
+> **For agents:** Your progression guide is at `PROGRESSION.md` in your workspace. It has tier detection, prerequisite checklists, and upgrade walkthroughs.
+
 This template ships with a locked-down default configuration. You can progressively unlock more capabilities as your trust and needs grow.
 
 Each tier is earned by hitting the ceiling naturally — not upsold. When you find yourself needing something your agent can't do yet, that's when to consider the next tier.
@@ -9,7 +11,7 @@ Each tier is earned by hitting the ceiling naturally — not upsold. When you fi
 **What it can do:**
 - Chat via Telegram/Discord/Slack
 - Read and write files in workspace (markdown notes, memory)
-- Search and retrieve memories
+- Retrieve memories from files (file-based, not semantic search)
 
 **What this looks like in practice:**
 - "Help me think through this decision" — agent builds a framework, tracks your reasoning over time
@@ -24,6 +26,7 @@ Each tier is earned by hitting the ceiling naturally — not upsold. When you fi
 - Shell commands (`exec`)
 - Web browsing (`browser`)
 - Web fetching (`web_fetch`, `web_search`)
+- Semantic memory search (`memory_search` — requires embeddings provider)
 - Process management (`process`)
 - Node/device control (`nodes`)
 - Subagent spawning (`sessions_spawn`)
@@ -35,9 +38,15 @@ Each tier is earned by hitting the ceiling naturally — not upsold. When you fi
   agents: {
     defaults: {
       tools: {
-        allow: ["read", "write", "edit", "memory_search", "memory_get"],
-        deny: ["exec", "process", "browser", "nodes", "web_search", "web_fetch", "gateway", "agents_list", "sessions_spawn"]
+        allow: ["read", "write", "edit", "memory_get"],
+        deny: ["exec", "process", "browser", "nodes", "web_search", "web_fetch", "gateway", "memory_search", "agents_list", "sessions_spawn"]
       }
+    }
+  },
+  tools: {
+    fs: {
+      enabled: true,
+      blocklist: ["/proc", "/etc", "/root", "/home", ".openclaw", ".ssh", ".aws", ".env"]
     }
   }
 }
@@ -47,11 +56,12 @@ Each tier is earned by hitting the ceiling naturally — not upsold. When you fi
 
 ## Tier 1: Research Assistant
 
-Enable web search and fetching so your agent can look things up.
+Enable web search, fetching, and semantic memory search.
 
 **Additional capabilities:**
 - Search the web
 - Fetch and read web pages
+- Semantic memory search (requires an embeddings-capable provider like OpenAI or Gemini)
 
 **What this looks like in practice:**
 - "What's the latest on X?" — agent searches the web and summarizes findings
@@ -69,19 +79,21 @@ railway ssh
 nano /data/.openclaw/openclaw.json
 ```
 
-Remove `web_search` and `web_fetch` from the deny list:
+Remove `web_search`, `web_fetch`, and `memory_search` from the deny list:
 ```json5
 {
   agents: {
     defaults: {
       tools: {
-        allow: ["read", "write", "edit", "memory_search", "memory_get", "web_search", "web_fetch"],
+        allow: ["read", "write", "edit", "memory_get", "memory_search", "web_search", "web_fetch"],
         deny: ["exec", "process", "browser", "nodes", "gateway", "agents_list", "sessions_spawn"]
       }
     }
   }
 }
 ```
+
+**Note:** `memory_search` uses semantic search powered by embeddings. OpenClaw auto-selects an embeddings provider from your configured API keys (OpenAI, Gemini, Voyage). If your provider doesn't support embeddings (e.g., Groq, OpenRouter), memory search falls back to keyword matching only.
 
 Restart the gateway:
 ```bash
@@ -117,7 +129,7 @@ Update the config:
   agents: {
     defaults: {
       tools: {
-        allow: ["read", "write", "edit", "memory_search", "memory_get", "web_search", "web_fetch", "exec"],
+        allow: ["read", "write", "edit", "memory_get", "memory_search", "web_search", "web_fetch", "exec"],
         deny: ["process", "browser", "nodes", "gateway", "agents_list", "sessions_spawn"]
       }
     }
@@ -171,7 +183,7 @@ Update the config:
   agents: {
     defaults: {
       tools: {
-        allow: ["read", "write", "edit", "memory_search", "memory_get", "web_search", "web_fetch", "exec", "sessions_spawn"],
+        allow: ["read", "write", "edit", "memory_get", "memory_search", "web_search", "web_fetch", "exec", "sessions_spawn"],
         deny: ["process", "browser", "nodes", "gateway", "agents_list"]
       },
       subagents: {

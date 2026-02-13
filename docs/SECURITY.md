@@ -12,14 +12,14 @@ OpenClaw has three complementary security mechanisms:
 | **Sandbox** | Isolates execution in Docker containers | No (requires Docker-in-Docker) |
 | **Elevated Mode** | Escape hatch for host exec when sandboxed | Yes (disabled by default) |
 
-Since Railway doesn't support Docker-in-Docker, this template relies on **Tool Policy** as the primary security mechanism.
+Since Railway doesn't support Docker-in-Docker, this template relies on **Tool Policy** and **Filesystem Blocklist** as the primary security mechanisms.
 
 ## Default Configuration (Tier 0)
 
 Out of the box, your agent can only:
 - Chat via messaging channels
 - Read/write files in the workspace
-- Search and retrieve memories
+- Retrieve memories from files (file-based, not semantic search)
 
 Everything else is blocked:
 
@@ -28,13 +28,28 @@ Everything else is blocked:
   agents: {
     defaults: {
       tools: {
-        allow: ["read", "write", "edit", "memory_search", "memory_get"],
-        deny: ["exec", "process", "browser", "nodes", "web_search", "web_fetch", "gateway", "agents_list", "sessions_spawn"]
+        allow: ["read", "write", "edit", "memory_get"],
+        deny: ["exec", "process", "browser", "nodes", "web_search", "web_fetch", "gateway", "memory_search", "agents_list", "sessions_spawn"]
       }
     }
   }
 }
 ```
+
+Additionally, a filesystem blocklist prevents the agent from reading sensitive paths:
+
+```json5
+{
+  tools: {
+    fs: {
+      enabled: true,
+      blocklist: ["/proc", "/etc", "/root", "/home", ".openclaw", ".ssh", ".aws", ".env"]
+    }
+  }
+}
+```
+
+This prevents the agent from accessing environment variables (via `/proc/self/environ`), configuration files, credentials, and system information — even with the `read` tool allowed.
 
 ## What Each Blocked Tool Does
 
@@ -48,6 +63,7 @@ Everything else is blocked:
 | `web_fetch` | Medium | Fetch arbitrary URLs |
 | `gateway` | Critical | Modify gateway configuration |
 | `agents_list` | Medium | Enumerate other agents |
+| `memory_search` | Low | Semantic search requires embeddings provider |
 | `sessions_spawn` | Medium | Create unlimited subagents |
 
 ## Access Control
@@ -114,7 +130,7 @@ Railway's container provides hard boundaries:
 | Risk | Mitigation |
 |------|------------|
 | Prompt injection | Tool policy limits blast radius |
-| API key theft | Keys in env vars, not accessible if `exec` blocked |
+| API key theft | Filesystem blocklist blocks `/proc/self/environ` and config paths |
 | Data exfiltration | No network tools by default |
 | Resource exhaustion | Railway's resource limits apply |
 
