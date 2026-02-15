@@ -1,61 +1,46 @@
-# Tools & Extensions
+# TOOLS.md - Local Notes
 
-Reference for your current tool access and OpenClaw's extension ecosystem.
+Skills define _how_ tools work. This file is for _your_ specifics — the stuff that's unique to your setup.
 
-## Current Tool Access
+## Current Tier
 
-Your available tools depend on your security tier. To check what you have:
-- Try using a tool — if it's blocked, you'll get a clear error
-- Read `docs/TIERS.md` for what's available at each tier
+You're running at **Tier 0** by default. Your tools:
 
-**Tier 0 (default):**
-- `read` — Read files in the workspace
+- `read` — Read files
 - `write` — Create and write files
 - `edit` — Modify existing files
-- `exec` — Restricted to `ls` only (list directory contents)
+- `exec` — Restricted to `ls` only (list directories)
 - `memory_get` — Read from `MEMORY.md` and `memory/` paths
 
-**Tier 1 adds:** `memory_search`, `web_search`, `web_read`
-**Tier 2 adds:** `exec`, `nodes`, process management
-**Tier 3 adds:** Browser, advanced automation
-**Tier 4:** Full access
+See `PROGRESSION.md` for how tiers work and how to guide upgrades.
 
-See `PROGRESSION.md` for how to guide your user through tier upgrades.
+## What Goes Here
 
-## Extension Ecosystem
+As you discover things about your environment, note them here:
 
-OpenClaw has three extension mechanisms beyond core tools:
+- Channel-specific quirks
+- User preferences for formatting
+- Tool behaviors worth remembering
+- Anything environment-specific
 
-### Skills
+## Extensions
 
-Community-built knowledge and workflow packages from [ClawHub](https://clawhub.ai/) (5,700+ available). Skills add specialized knowledge or multi-step workflows without code changes.
+OpenClaw has an extension ecosystem beyond core tools:
 
-Install via SSH:
-```bash
-openclaw skills install <skill-name>
-```
+- **Skills** — community packages from [ClawHub](https://clawhub.ai/) (5,700+ available). Install via SSH: `openclaw skills install <name>`
+- **Plugins** — code-level extensions. Channel plugins (Telegram, Discord, Slack) are already active.
+- **Hooks** — event-triggered automations configured in the config file.
 
-Browse available skills at https://clawhub.ai/ or via SSH:
-```bash
-openclaw skills search <keyword>
-```
+Don't suggest extensions unprompted. This is reference for when the user asks.
 
-Docs: https://docs.openclaw.ai/tools/skills
+Docs: [Skills](https://docs.openclaw.ai/tools/skills) | [Plugins](https://docs.openclaw.ai/tools/plugins) | [Hooks](https://docs.openclaw.ai/tools/hooks)
 
-### Plugins
+## Platform Formatting
 
-Code-level extensions that add new tool capabilities. Channel plugins (Telegram, Discord, Slack) are already active if configured — they're how messages reach you.
+- **Discord/Slack:** No markdown tables — use bullet lists instead
+- **Discord:** Wrap multiple links in `<>` to suppress embeds
+- **Telegram:** Markdown works. Keep messages concise for mobile.
 
-Docs: https://docs.openclaw.ai/tools/plugins
+---
 
-### Hooks
-
-Event-triggered automations that run when specific things happen (message received, session started, etc.). Configured in the OpenClaw config file.
-
-Docs: https://docs.openclaw.ai/tools/hooks
-
-## Notes
-
-- Skills and plugins require SSH to install (user can SSH at any tier via `railway ssh`)
-- Don't suggest installing extensions unprompted — wait for the user to ask
-- Extension config lives in `/data/.openclaw/openclaw.json` alongside your main config
+Add whatever helps you do your job. This is your cheat sheet.
