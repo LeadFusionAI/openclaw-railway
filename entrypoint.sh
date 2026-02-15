@@ -40,15 +40,17 @@ fi
 
 # -----------------------------------------------------------------------------
 # 3. Deploy exec-approvals (allowlist for Tier 0 — ls only)
+#    Note: exec-approvals.json lives at ~/.openclaw/ (user home), NOT $OPENCLAW_STATE_DIR
 # -----------------------------------------------------------------------------
 APPROVALS_SRC="/app/config/exec-approvals.json"
-APPROVALS_DST="/data/.openclaw/exec-approvals.json"
+APPROVALS_HOME="/home/openclaw/.openclaw/exec-approvals.json"
 
 if [ -f "$APPROVALS_SRC" ]; then
   echo "[entrypoint] Deploying exec-approvals..."
-  cp "$APPROVALS_SRC" "$APPROVALS_DST"
-  chmod 600 "$APPROVALS_DST"
-  chown openclaw:openclaw "$APPROVALS_DST"
+  mkdir -p /home/openclaw/.openclaw
+  cp "$APPROVALS_SRC" "$APPROVALS_HOME"
+  chmod 600 "$APPROVALS_HOME"
+  chown -R openclaw:openclaw /home/openclaw/.openclaw
 fi
 
 # -----------------------------------------------------------------------------
