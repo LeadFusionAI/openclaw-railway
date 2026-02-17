@@ -183,21 +183,26 @@ function buildConfig() {
   const tier = Math.max(0, Math.min(3, isNaN(rawTier) ? 0 : rawTier));
   const effectiveTier = tier === 3 ? 2 : tier;
 
-  console.log(`[build-config] SECURITY_TIER=${tier} (${TIER_NAMES[tier] || 'Unknown'})`);
-
   if (tier === 3) {
-    console.log('[build-config] WARNING: SECURITY_TIER=3 (Operator) requires SSH to configure');
-    console.log('[build-config] Applying Tier 2 (Power User) via env var');
-    console.log('[build-config] A .tier-status file will be written to the workspace');
     writeTier3Marker();
   }
 
   applySecurityTier(config, effectiveTier);
 
-  console.log(`[build-config] Effective tier: ${effectiveTier} (${TIER_NAMES[effectiveTier]})`);
-  console.log(`[build-config] Tools allowed: ${config.tools?.allow?.join(', ') || 'defaults'}`);
-  console.log(`[build-config] Tools denied: ${config.tools?.deny?.join(', ') || 'none'}`);
-  console.log(`[build-config] Exec security: ${config.tools?.exec?.security || 'not set'}, ask: ${config.tools?.exec?.ask || 'not set'}`);
+  // Single write to avoid interleaved output
+  const tierLines = [
+    `[build-config] SECURITY_TIER=${tier} (${TIER_NAMES[tier] || 'Unknown'})`,
+    ...(tier === 3 ? [
+      '[build-config] WARNING: SECURITY_TIER=3 (Operator) requires SSH to configure',
+      '[build-config] Applying Tier 2 (Power User) via env var',
+      '[build-config] A .tier-status file will be written to the workspace',
+    ] : []),
+    `[build-config] Effective tier: ${effectiveTier} (${TIER_NAMES[effectiveTier]})`,
+    `[build-config] Tools allowed: ${config.tools?.allow?.join(', ') || 'defaults'}`,
+    `[build-config] Tools denied: ${config.tools?.deny?.join(', ') || 'none'}`,
+    `[build-config] Exec security: ${config.tools?.exec?.security || 'not set'}, ask: ${config.tools?.exec?.ask || 'not set'}`,
+  ];
+  process.stdout.write(tierLines.join('\n') + '\n');
 
   // --- Embeddings ---
   configureEmbeddings(config);
@@ -356,12 +361,6 @@ function main() {
 
   // Write config with secure permissions
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), { mode: 0o600 });
-  console.log('[build-config] Generated config at', CONFIG_PATH);
-
-  // Log key config values for debugging (not sensitive data)
-  console.log('[build-config] Channels configured:', Object.keys(config.channels || {}).join(', ') || 'none');
-  console.log('[build-config] Gateway auth mode:', config.gateway?.auth?.mode || 'not set');
-  console.log('[build-config] Gateway token set:', config.gateway?.auth?.token ? 'yes' : 'no');
 
   // Debug: print full config structure (redact secrets)
   const debugConfig = JSON.parse(JSON.stringify(config));
@@ -381,7 +380,17 @@ function main() {
       debugConfig.env[key] = '[REDACTED]';
     }
   }
-  console.log('[build-config] Full config:', JSON.stringify(debugConfig, null, 2));
+
+  // Single write to avoid interleaved output with gateway/entrypoint logs
+  const summary = [
+    `[build-config] Generated config at ${CONFIG_PATH}`,
+    `[build-config] Channels configured: ${Object.keys(config.channels || {}).join(', ') || 'none'}`,
+    `[build-config] Gateway auth mode: ${config.gateway?.auth?.mode || 'not set'}`,
+    `[build-config] Gateway token set: ${config.gateway?.auth?.token ? 'yes' : 'no'}`,
+    `[build-config] Full config:`,
+    JSON.stringify(debugConfig, null, 2),
+  ].join('\n');
+  process.stdout.write(summary + '\n');
 }
 
 main();

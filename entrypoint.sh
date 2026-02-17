@@ -120,6 +120,18 @@ if [ -f "$CONFIG_FILE" ]; then
   chown root:openclaw "$CONFIG_FILE"
   chmod 640 "$CONFIG_FILE"
 
+  # Pre-create gateway runtime directories — the gateway runs as openclaw and
+  # needs to write to these at runtime (devices, cron, sessions, canvas, etc).
+  # We create them before locking the parent dir so the gateway doesn't need
+  # mkdir permission on /data/.openclaw itself.
+  GATEWAY_DIRS="agents canvas cron devices identity sessions"
+  for dir in $GATEWAY_DIRS; do
+    mkdir -p "/data/.openclaw/$dir"
+    chown openclaw:openclaw "/data/.openclaw/$dir"
+    chmod 700 "/data/.openclaw/$dir"
+  done
+  echo "[entrypoint] Gateway runtime directories created (${GATEWAY_DIRS})"
+
   # Lock the .openclaw directory — openclaw can traverse and read, not create files
   chown root:openclaw /data/.openclaw
   chmod 750 /data/.openclaw
@@ -164,7 +176,7 @@ start_gateway() {
     PATH=/usr/local/bin:/usr/bin:/bin \
     OPENCLAW_STATE_DIR=/data/.openclaw \
     NODE_ENV=production \
-    su openclaw -c "cd /data/workspace && openclaw gateway run --port 18789 2>&1 | while read line; do echo \"[gateway] \$line\"; done" &
+    su openclaw -c "cd /data/workspace && openclaw gateway run --port 18789 --compact 2>&1 | grep --line-buffered '\[' | while read line; do echo \"[gateway] \$line\"; done" &
   GATEWAY_PID=$!
 
   sleep 3

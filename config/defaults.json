@@ -44,6 +44,7 @@
     }
   },
   "logging": {
-    "redactSensitive": "tools"
+    "redactSensitive": "tools",
+    "consoleLevel": "warn"
   }
 }
