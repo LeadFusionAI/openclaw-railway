@@ -111,10 +111,10 @@ echo "[entrypoint] Building config from environment variables..."
 node /app/src/build-config.js
 
 # -----------------------------------------------------------------------------
-# 4b. Harden config file permissions (pre-gateway)
-#     Config starts at 640 root:openclaw so the gateway can read it at startup.
-#     After the gateway loads it into memory, step 5 locks it to 600 root:root
-#     so even exec cat can't read it.
+# 4b. Harden config file permissions
+#     Config is 640 root:openclaw — gateway can read, agent cannot write.
+#     This blocks the privilege escalation attack (agent overwriting config).
+#     Read access stays open because the gateway re-reads config for health checks.
 # -----------------------------------------------------------------------------
 if [ -f "$CONFIG_FILE" ]; then
   chown root:openclaw "$CONFIG_FILE"
@@ -124,7 +124,7 @@ if [ -f "$CONFIG_FILE" ]; then
   chown root:openclaw /data/.openclaw
   chmod 750 /data/.openclaw
 
-  echo "[entrypoint] Config set to 640 (gateway will read, then locked to 600)"
+  echo "[entrypoint] Config set to 640 root:openclaw (read-only for gateway, no agent write)"
 fi
 
 # Exec-approvals: root owns it, but gateway needs read+write at runtime
@@ -172,13 +172,12 @@ start_gateway() {
   if kill -0 $GATEWAY_PID 2>/dev/null; then
     echo "[entrypoint] Gateway running (PID: $GATEWAY_PID)"
 
-    # Lock config to root-only now that gateway has loaded it into memory.
-    # The gateway doesn't re-read the file after startup, so this is safe.
-    # This blocks exec-based reads (cat /data/.openclaw/openclaw.json) at
-    # all tiers — the openclaw user gets Permission denied.
-    chmod 600 "$CONFIG_FILE"
-    chown root:root "$CONFIG_FILE"
-    echo "[entrypoint] Config locked to root-only (600) after gateway loaded"
+    # Config stays at 640 root:openclaw (set in step 4b).
+    # Gateway re-reads config periodically for health snapshots, so the
+    # openclaw group must retain read access. Write is blocked (root-owned).
+    # The exec allowlist (Tier 0: ls only) prevents cat-based reads.
+    # At Tier 1+ cat could read config — accepted read leak, not priv esc.
+    echo "[entrypoint] Config remains 640 root:openclaw (gateway needs periodic re-read)"
   else
     echo "[entrypoint] ERROR: Gateway exited immediately"
     exit 1
