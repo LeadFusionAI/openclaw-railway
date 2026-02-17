@@ -1,7 +1,28 @@
 {
   "agents": {
     "defaults": {
-      "workspace": "/data/workspace"
+      "workspace": "/data/workspace",
+      "blockStreamingDefault": "on",
+      "blockStreamingBreak": "text_end",
+      "blockStreamingChunk": {
+        "minChars": 400,
+        "maxChars": 1200,
+        "breakPreference": "paragraph"
+      },
+      "blockStreamingCoalesce": {
+        "idleMs": 1500
+      }
+    }
+  },
+  "channels": {
+    "telegram": {
+      "streamMode": "off"
+    },
+    "discord": {
+      "streamMode": "off"
+    },
+    "slack": {
+      "streamMode": "off"
     }
   },
   "tools": {
