@@ -1,6 +1,6 @@
 {
   "name": "openclaw-railway",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "OpenClaw Railway template - secure AI assistant deployment",
   "private": true,
   "type": "module",

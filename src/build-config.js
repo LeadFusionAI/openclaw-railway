@@ -354,11 +354,14 @@ function main() {
 
   // Debug: print full config structure (redact secrets)
   const debugConfig = JSON.parse(JSON.stringify(config));
-  if (debugConfig.channels?.telegram?.botToken) {
-    debugConfig.channels.telegram.botToken = '[REDACTED]';
+  for (const ch of Object.values(debugConfig.channels || {})) {
+    if (ch.botToken) ch.botToken = '[REDACTED]';
   }
   if (debugConfig.gateway?.auth?.token) {
     debugConfig.gateway.auth.token = '[REDACTED]';
+  }
+  if (debugConfig.agents?.defaults?.memorySearch?.remote?.apiKey) {
+    debugConfig.agents.defaults.memorySearch.remote.apiKey = '[REDACTED]';
   }
   console.log('[build-config] Full config:', JSON.stringify(debugConfig, null, 2));
 }
