@@ -17,12 +17,6 @@
   "channels": {
     "telegram": {
       "streamMode": "off"
-    },
-    "discord": {
-      "streamMode": "off"
-    },
-    "slack": {
-      "streamMode": "off"
     }
   },
   "tools": {
