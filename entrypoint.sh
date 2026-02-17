@@ -84,14 +84,46 @@ echo "[entrypoint] Building config from environment variables..."
 node /app/src/build-config.js
 
 # -----------------------------------------------------------------------------
+# 4b. Harden config file permissions (prevents privilege escalation)
+#     Config: root owns it, openclaw group can read (gateway needs this), but
+#     cannot write. This blocks the attack where the agent overwrites
+#     openclaw.json to grant itself process/browser/nodes tools.
+# -----------------------------------------------------------------------------
+if [ -f "$CONFIG_FILE" ]; then
+  chown root:openclaw "$CONFIG_FILE"
+  chmod 640 "$CONFIG_FILE"
+
+  # Lock the .openclaw directory — openclaw can traverse and read, not create files
+  chown root:openclaw /data/.openclaw
+  chmod 750 /data/.openclaw
+
+  echo "[entrypoint] Config hardened (root:openclaw 640)"
+fi
+
+# Exec-approvals: same pattern — gateway reads, agent can't overwrite
+if [ -f "$APPROVALS_HOME" ]; then
+  chown root:openclaw "$APPROVALS_HOME"
+  chmod 640 "$APPROVALS_HOME"
+  chown root:openclaw "$(dirname "$APPROVALS_HOME")"
+  chmod 750 "$(dirname "$APPROVALS_HOME")"
+  echo "[entrypoint] Exec-approvals hardened (root:openclaw 640)"
+fi
+
+# -----------------------------------------------------------------------------
+# 4c. Scrub non-essential secrets from environment
+#     Gateway reads provider keys at runtime (must stay), but these were only
+#     needed by build-config.js and can be safely removed.
+# -----------------------------------------------------------------------------
+unset GATEWAY_TOKEN 2>/dev/null || true
+unset SETUP_PASSWORD 2>/dev/null || true
+unset SECURITY_TIER 2>/dev/null || true
+echo "[entrypoint] Scrubbed consumed env vars"
+
+# -----------------------------------------------------------------------------
 # 5. Start OpenClaw gateway (if configured)
 # -----------------------------------------------------------------------------
 start_gateway() {
   echo "[entrypoint] Starting gateway..."
-
-  # Ensure config has secure permissions
-  chmod 600 "$CONFIG_FILE"
-  chown openclaw:openclaw "$CONFIG_FILE"
 
   # Start gateway in background, streaming logs to stdout/stderr
   su openclaw -c "cd /data/workspace && openclaw gateway run --port 18789 2>&1 | while read line; do echo \"[gateway] \$line\"; done" &
@@ -120,7 +152,10 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 6. Start health check server (drops to openclaw user)
+# 6. Start health check server (drops to openclaw user, scrubbed env)
+#    Health server only needs PORT — strip everything else to minimize
+#    what's visible in /proc/self/environ for this process tree.
 # -----------------------------------------------------------------------------
 echo "[entrypoint] Starting health server..."
-exec su openclaw -c "cd /app && node src/server.js"
+exec env -i HOME=/home/openclaw PATH=/usr/local/bin:/usr/bin:/bin PORT="${PORT:-8080}" \
+  su openclaw -c "cd /app && node src/server.js"

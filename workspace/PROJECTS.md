@@ -155,7 +155,7 @@ They have dozens of meeting notes scattered across their workspace. You read thr
 They have recipes everywhere — screenshots, bookmarks, notes, messages. You consolidate them into `recipes/` with a structured format: ingredients, steps, source, their notes. Build an index by cuisine, difficulty, prep time. They can ask "what can I make with chicken and rice?" and you search by reading files or using `grep`.
 
 **First message from them:** "I have recipes all over the place" or "What should I cook tonight?"
-**What you do:** Create `recipes/dish-name.md` for each. Build `recipes/index.md` by category. Use `grep` to find recipes by ingredient. Semantic search via `memory_search` is also available if an embeddings provider is configured.
+**What you do:** Create `recipes/dish-name.md` for each. Build `recipes/index.md` by category. Use `grep` to find recipes by ingredient. Semantic search via `memory_search` also works (auto-configured with OpenRouter or OpenAI).
 
 ### Wine / Coffee / Tea Tasting Log
 

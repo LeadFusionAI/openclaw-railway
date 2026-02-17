@@ -12,14 +12,17 @@ OpenClaw has three complementary security mechanisms:
 | **Sandbox** | Isolates execution in Docker containers | No (requires Docker-in-Docker) |
 | **Elevated Mode** | Escape hatch for host exec when sandboxed | Yes (disabled by default) |
 
-Since Railway doesn't support Docker-in-Docker, this template relies on **Tool Policy** and **Filesystem Blocklist** as the primary security mechanisms.
+Since Railway doesn't support Docker-in-Docker, this template relies on **Tool Policy** and **Linux File Permissions** as the primary security mechanisms.
 
 ## Default Configuration (Tier 0)
 
-Out of the box, your agent can only:
+Out of the box, your agent can:
 - Chat via messaging channels
 - Read/write files in the workspace
-- Retrieve memories from files (file-based, not semantic search)
+- Fetch and read web pages
+- Search memories (auto-configured with OpenRouter/OpenAI)
+- List directories (`ls` only)
+- Schedule cron jobs
 
 Everything else is blocked:
 
@@ -28,28 +31,30 @@ Everything else is blocked:
   agents: {
     defaults: {
       tools: {
-        allow: ["read", "write", "edit", "memory_get"],
-        deny: ["exec", "process", "browser", "nodes", "web_search", "web_fetch", "gateway", "memory_search", "agents_list", "sessions_spawn"]
+        allow: ["read", "write", "edit", "memory_get", "memory_search", "web_search", "web_fetch", "exec", "cron"],
+        deny: ["process", "browser", "nodes", "gateway", "agents_list", "sessions_spawn"]
       }
     }
   }
 }
 ```
 
-Additionally, a filesystem blocklist prevents the agent from reading sensitive paths:
+### Filesystem Protection
 
-```json5
-{
-  tools: {
-    fs: {
-      enabled: true,
-      blocklist: ["/proc", "/etc", "/root", "/home", ".openclaw", ".ssh", ".aws", ".env"]
-    }
-  }
-}
-```
+OpenClaw's Docker-based filesystem sandbox (`tools.fs` blocklist) is not available on Railway — the gateway rejects `tools.fs` as an unrecognized config key. Instead, this template uses **Linux file permissions** to protect sensitive paths:
 
-This prevents the agent from accessing environment variables (via `/proc/self/environ`), configuration files, credentials, and system information — even with the `read` tool allowed.
+| Path | Owner | Perms | Agent can read? | Agent can write? |
+|------|-------|-------|-----------------|------------------|
+| `/data/.openclaw/openclaw.json` | root:openclaw | 640 | Yes (gateway needs this) | **No** |
+| `/data/.openclaw/` directory | root:openclaw | 750 | Traverse only | **No** (can't create files) |
+| `/home/openclaw/.openclaw/` | root:openclaw | 750 | Traverse only | **No** |
+| `exec-approvals.json` | root:openclaw | 640 | Yes | **No** |
+| `/data/workspace/` | openclaw:openclaw | 755 | Yes | Yes |
+| `/proc/self/environ` | (process UID) | 400 | Yes (known limitation) | No |
+
+**How it works:** The entrypoint runs as root, generates the config, then changes ownership to `root:openclaw` with group-read permissions. The gateway (running as `openclaw`) can read the config at startup, but the agent's `write` tool gets EACCES when trying to overwrite it. This blocks the privilege escalation attack where the agent rewrites `openclaw.json` to grant itself blocked tools.
+
+**Known limitation:** The agent can read `/proc/self/environ` which contains environment variables including API keys. This cannot be blocked without upstream OpenClaw changes (tools run in the same process as the gateway). Mitigation: non-essential secrets are scrubbed from the environment after config generation, and the agent's behavioral instructions prohibit reading sensitive paths.
 
 ## What Each Blocked Tool Does
 
@@ -130,7 +135,7 @@ Railway's container provides hard boundaries:
 | Risk | Mitigation |
 |------|------------|
 | Prompt injection | Tool policy limits blast radius |
-| API key theft | Filesystem blocklist blocks `/proc/self/environ` and config paths |
+| API key theft | Config file write-locked; env vars partially scrubbed; behavioral instructions prohibit reading secrets |
 | Data exfiltration | No network tools by default |
 | Resource exhaustion | Railway's resource limits apply |
 

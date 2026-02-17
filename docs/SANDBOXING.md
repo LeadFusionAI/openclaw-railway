@@ -195,77 +195,54 @@ This is a reasonable security posture for personal use.
 
 ## Tool Restrictions (Railway's Alternative)
 
-Instead of Docker sandboxing, restrict what tools the agent can use:
+Instead of Docker sandboxing, this template uses two complementary mechanisms:
 
-### Configure via Bot
+### 1. Tool Policy (openclaw.json)
 
-You can configure this by asking your bot directly:
-- "Show me the current tool restrictions"
-- "Only allow read-only file operations"
-- "Block access to .ssh and .env directories"
-
-### Configure via CLI
-
-```bash
-openclaw configure --section tools
-```
-
-### Configure via Config File
-
-```json
-{
-  "tools": {
-    "exec": {
-      "enabled": true,
-      "ask": "always",
-      "allowlist": ["ls", "cat", "grep", "find"]
-    },
-    "fs": {
-      "blocklist": ["/proc", ".ssh", ".aws", ".env", ".openclaw"]
-    }
-  }
-}
-```
-
-## Recommended Configuration
-
-For Railway with channel access:
+Controls which tools the agent can use. Configured via `SECURITY_TIER` env var:
 
 ```json
 {
   "agents": {
     "defaults": {
-      "sandbox": {
-        "mode": "off"
+      "tools": {
+        "allow": ["read", "write", "edit", "memory_get", "memory_search", "web_search", "web_fetch", "exec", "cron"],
+        "deny": ["process", "browser", "nodes", "gateway", "agents_list", "sessions_spawn"]
       }
-    }
-  },
-  "tools": {
-    "exec": {
-      "enabled": true,
-      "ask": "always",
-      "allowlist": [
-        "ls", "cat", "head", "tail", "grep", "find",
-        "wc", "sort", "uniq", "pwd", "echo"
-      ]
-    },
-    "fs": {
-      "enabled": true,
-      "blocklist": [
-        "/proc", "/etc", "/root", "/home",
-        ".ssh", ".aws", ".env", ".openclaw"
-      ]
-    }
-  },
-  "channels": {
-    "telegram": {
-      "dmPolicy": "pairing"
     }
   }
 }
 ```
 
-This provides defense-in-depth without requiring Docker sandboxing.
+### 2. Linux File Permissions (entrypoint.sh)
+
+The entrypoint hardens file ownership after generating config. The agent's `read`/`write` tools respect OS file permissions:
+
+| What's protected | How |
+|-----------------|-----|
+| `openclaw.json` (config) | `root:openclaw 640` — agent can read, **cannot write** |
+| `.openclaw/` directories | `root:openclaw 750` — agent cannot create new files |
+| `exec-approvals.json` | `root:openclaw 640` — agent cannot overwrite |
+| Non-essential env vars | Scrubbed from environment after config generation |
+
+This blocks the critical privilege escalation where an agent overwrites `openclaw.json` to grant itself blocked tools (process, browser, nodes).
+
+**Note:** OpenClaw's `tools.fs` blocklist config key is not supported by the gateway — it rejects it as unrecognized. File permissions are the enforcement mechanism on Railway.
+
+### Exec Allowlist (exec-approvals.json)
+
+Controls which shell commands the agent can run, deployed as a separate file at `~/.openclaw/exec-approvals.json`. See [TIERS.md](TIERS.md) for per-tier allowlists.
+
+## Recommended Configuration
+
+For Railway with channel access, the default Tier 0 configuration is recommended. It provides:
+
+- Tool policy limiting available tools
+- Exec restricted to `ls` only via allowlist
+- Config files write-locked via Linux permissions
+- Pairing required for non-owner users
+
+See [TIERS.md](TIERS.md) for how to progressively unlock more capabilities.
 
 ## Further Reading
 

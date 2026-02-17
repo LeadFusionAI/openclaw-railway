@@ -30,9 +30,10 @@ Redeploy after changing. The config regenerates automatically.
 - List directory contents (`ls` only — no other shell commands)
 - Schedule cron jobs and reminders
 
-**Needs API key (not available out of the box):**
+**Needs API key:**
 - Search the web (`web_search`) — requires `BRAVE_API_KEY`
-- Semantic memory search (`memory_search`) — requires an embeddings provider (auto-configured if OpenAI or OpenRouter key is set)
+
+Note: `memory_search` is auto-configured when using OpenRouter or OpenAI as your LLM provider. No extra setup needed.
 
 **What this looks like in practice:**
 - "Remind me to call the dentist Monday at 10am" — cron fires, message appears in Telegram. Done.

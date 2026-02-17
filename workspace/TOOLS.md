@@ -14,12 +14,12 @@ Your tier is set by the `SECURITY_TIER` env var. Detect your actual tier using t
 - `edit` — Modify existing files
 - `exec` — Restricted to `ls` only (list directories)
 - `memory_get` — Read from `MEMORY.md` and `memory/` paths
+- `memory_search` — Semantic memory search (auto-configured with OpenRouter or OpenAI)
 - `web_fetch` — Fetch and read web pages
 - `cron` — Schedule jobs and reminders
 
 *Needs API key:*
 - `web_search` — Requires `BRAVE_API_KEY` env var
-- `memory_search` — Requires embeddings provider (auto-configured if OpenAI or OpenRouter key is set)
 
 **Tier 1 — Capable Agent** adds curated exec: `cat`, `head`, `tail`, `grep`, `find`, `wc`, `sort`, `uniq`, `git`
 
