@@ -41,23 +41,42 @@ Everything else is blocked:
 
 ### Filesystem Protection
 
-OpenClaw's Docker-based filesystem sandbox (`tools.fs` blocklist) is not available on Railway — the gateway rejects `tools.fs` as an unrecognized config key. Instead, this template uses **Linux file permissions** to protect sensitive paths:
+This template uses two complementary mechanisms to protect sensitive files:
 
-| Path | Owner | Perms | Agent can read? | Agent can write? |
-|------|-------|-------|-----------------|------------------|
-| `/data/.openclaw/openclaw.json` | root:openclaw | 640 | Yes (gateway needs this) | **No** |
-| `/data/.openclaw/` directory | root:openclaw | 750 | Traverse only | **No** (can't create files) |
-| `/home/openclaw/.openclaw/` | root:openclaw | 750 | Traverse only | **No** |
-| `exec-approvals.json` | root:openclaw | 660 | Yes | Yes (gateway needs write for metadata) |
-| `/data/workspace/AGENTS.md` etc. | root:openclaw | 440 | Yes | **No** (shipped templates) |
-| `/data/workspace/MEMORY.md` etc. | openclaw:openclaw | 644 | Yes | Yes (user files) |
-| `/proc/self/environ` | (process UID) | 400 | Yes (known limitation) | No |
+#### 1. Workspace-Only Sandbox (`tools.fs.workspaceOnly`)
 
-**How it works:** The entrypoint runs as root, generates the config, then changes ownership to `root:openclaw` with group-read permissions. The gateway (running as `openclaw`) can read the config at startup, but the agent's `write` tool gets EACCES when trying to overwrite it. This blocks the privilege escalation attack where the agent rewrites `openclaw.json` to grant itself blocked tools.
+The agent's `read`, `write`, and `edit` tools are restricted to the workspace directory (`/data/workspace/`). Any attempt to access files outside the workspace is rejected by the gateway with "Path escapes sandbox root."
 
-Behavioral template files (`AGENTS.md`, `TOOLS.md`, `PROGRESSION.md`, `PROJECTS.md`) are also locked to `root:openclaw 440` and forcibly restored from the container image on every startup. This prevents a prompt injection from persistently rewriting the agent's safety instructions — even if they were tampered with in a previous session, the next deploy or restart restores the originals.
+```json5
+{
+  tools: {
+    fs: {
+      workspaceOnly: true
+    }
+  }
+}
+```
 
-**Known limitation:** The agent can read `/proc/self/environ` which contains environment variables including API keys. This cannot be blocked without upstream OpenClaw changes (tools run in the same process as the gateway). Mitigation: non-essential secrets are scrubbed from the environment after config generation, and the agent's behavioral instructions prohibit reading sensitive paths.
+This blocks:
+- Reading `/proc/self/environ` (API keys, tokens)
+- Reading `/data/.openclaw/openclaw.json` (config with secrets)
+- Writing to `/home/openclaw/.openclaw/exec-approvals.json` (exec policy)
+- Any file access outside `/data/workspace/`
+
+#### 2. Linux File Permissions (defense in depth)
+
+The entrypoint also hardens file ownership as a second layer. Even if `workspaceOnly` were bypassed, OS permissions prevent writes to critical files:
+
+| Path | Owner | Perms | Purpose |
+|------|-------|-------|---------|
+| `/data/.openclaw/openclaw.json` | root:openclaw | 640 | Config — gateway reads, agent can't write |
+| `/data/.openclaw/` directory | root:openclaw | 750 | Agent can't create new files |
+| `/home/openclaw/.openclaw/` | root:openclaw | 750 | Agent can't create new files |
+| `exec-approvals.json` | root:openclaw | 660 | Gateway needs write for metadata |
+| `/data/workspace/AGENTS.md` etc. | root:openclaw | 440 | Shipped templates — read-only |
+| `/data/workspace/MEMORY.md` etc. | openclaw:openclaw | 644 | User files — read/write |
+
+Behavioral template files (`AGENTS.md`, `TOOLS.md`, `PROGRESSION.md`, `PROJECTS.md`) are locked to `root:openclaw 440` and forcibly restored from the container image on every startup. This prevents a prompt injection from persistently rewriting the agent's safety instructions.
 
 ## What Each Blocked Tool Does
 
@@ -138,7 +157,7 @@ Railway's container provides hard boundaries:
 | Risk | Mitigation |
 |------|------------|
 | Prompt injection | Tool policy limits blast radius |
-| API key theft | Config file write-locked; env vars partially scrubbed; behavioral instructions prohibit reading secrets |
+| API key theft | `workspaceOnly` blocks reads outside workspace; config write-locked; env vars partially scrubbed |
 | Data exfiltration | No network tools by default |
 | Resource exhaustion | Railway's resource limits apply |
 

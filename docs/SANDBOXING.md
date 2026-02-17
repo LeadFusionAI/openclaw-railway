@@ -195,9 +195,25 @@ This is a reasonable security posture for personal use.
 
 ## Tool Restrictions (Railway's Alternative)
 
-Instead of Docker sandboxing, this template uses two complementary mechanisms:
+Instead of Docker sandboxing, this template uses three complementary mechanisms:
 
-### 1. Tool Policy (openclaw.json)
+### 1. Workspace-Only Filesystem Sandbox
+
+The most important protection. Restricts the agent's `read`, `write`, and `edit` tools to the workspace directory only:
+
+```json
+{
+  "tools": {
+    "fs": {
+      "workspaceOnly": true
+    }
+  }
+}
+```
+
+Any attempt to access files outside `/data/workspace/` is rejected with "Path escapes sandbox root." This blocks reading secrets (`/proc/self/environ`, config files) and writing to security-critical files (`exec-approvals.json`, `openclaw.json`).
+
+### 2. Tool Policy (openclaw.json)
 
 Controls which tools the agent can use. Configured via `SECURITY_TIER` env var:
 
@@ -214,20 +230,17 @@ Controls which tools the agent can use. Configured via `SECURITY_TIER` env var:
 }
 ```
 
-### 2. Linux File Permissions (entrypoint.sh)
+### 3. Linux File Permissions (defense in depth)
 
-The entrypoint hardens file ownership after generating config. The agent's `read`/`write` tools respect OS file permissions:
+The entrypoint hardens file ownership as a backup layer:
 
 | What's protected | How |
 |-----------------|-----|
-| `openclaw.json` (config) | `root:openclaw 640` — agent can read, **cannot write** |
+| `openclaw.json` (config) | `root:openclaw 640` — agent cannot write |
 | `.openclaw/` directories | `root:openclaw 750` — agent cannot create new files |
-| `exec-approvals.json` | `root:openclaw 660` — gateway needs write for metadata updates |
+| `exec-approvals.json` | `root:openclaw 660` — gateway needs write for metadata |
+| Behavioral templates | `root:openclaw 440` — restored from image on every startup |
 | Non-essential env vars | Scrubbed from environment after config generation |
-
-This blocks the critical privilege escalation where an agent overwrites `openclaw.json` to grant itself blocked tools (process, browser, nodes).
-
-**Note:** OpenClaw's `tools.fs` blocklist config key is not supported by the gateway — it rejects it as unrecognized. File permissions are the enforcement mechanism on Railway.
 
 ### Exec Allowlist (exec-approvals.json)
 
