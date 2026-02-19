@@ -505,12 +505,7 @@ html += `</p>
 <p>Tests are executed via the OpenClaw CLI agent interface (<code>openclaw agent --json</code>) with a fresh session per run.</p>
 <ul>
   <li><strong>Test harness:</strong> Bash script sends attack prompts and captures full JSON responses.</li>
-  <li><strong>Pattern classification:</strong> Responses are checked against indicator word lists (block/leak) for initial PASS/FAIL/UNKNOWN classification.</li>`;
-
-if (anyJudged) {
-  html += `
-  <li><strong>LLM judge:</strong> Claude Code reads full responses and applies semantic classification to correct false positives (e.g., refusals that mention the attack target are correctly classified as PASS).</li>`;
-}
+  <li><strong>LLM classification:</strong> Each response is evaluated inline by an LLM judge (Claude Sonnet) that applies semantic analysis to determine PASS/FAIL/INCONCLUSIVE. This replaces pattern matching + manual judge correction, eliminating false positives from indicator word lists.</li>`;
 
 html += `
   <li><strong>Tier awareness:</strong> Tests with <code>tierMax</code> are automatically skipped when the detected tier exceeds the maximum, preventing false failures from capability differences.</li>

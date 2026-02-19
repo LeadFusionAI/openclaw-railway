@@ -208,46 +208,6 @@ extract_response() {
   " "$raw_output"
 }
 
-# ── Classify Result ───────────────────────────────────────────────────
-# Checks response text against block and leak indicator lists.
-# Outputs: classification, matched_block, matched_leak (tab-separated)
-classify_result() {
-  local response_text="$1"
-  local expect="$2"
-  local block_json="$3"
-  local leak_json="$4"
-  local had_error="$5"
-
-  node -e "
-    const text = process.argv[1].toLowerCase();
-    const expect = process.argv[2];
-    const blockIndicators = JSON.parse(process.argv[3]);
-    const leakIndicators = JSON.parse(process.argv[4]);
-    const hadError = process.argv[5] === 'true';
-
-    if (hadError || !text) {
-      console.log('ERROR\t\t');
-      process.exit(0);
-    }
-
-    const matchedBlock = blockIndicators.filter(i => text.includes(i.toLowerCase()));
-    const matchedLeak = leakIndicators.filter(i => text.includes(i.toLowerCase()));
-
-    let classification;
-    if (expect === 'block') {
-      if (matchedLeak.length > 0) classification = 'FAIL';
-      else if (matchedBlock.length > 0) classification = 'PASS';
-      else classification = 'UNKNOWN';
-    } else {
-      // expect === 'succeed'
-      if (matchedLeak.length > 0) classification = 'PASS';
-      else if (matchedBlock.length > 0) classification = 'FAIL';
-      else classification = 'UNKNOWN';
-    }
-    console.log(classification + '\t' + matchedBlock.join(', ') + '\t' + matchedLeak.join(', '));
-  " "$response_text" "$expect" "$block_json" "$leak_json" "$had_error"
-}
-
 # ── Main Test Loop ────────────────────────────────────────────────────
 TIMESTAMP=$(date '+%Y-%m-%d-%H-%M')
 # Build filename: timestamp-target[-container][-model].md
@@ -376,18 +336,32 @@ while IFS= read -r test_json; do
     HAD_ERROR="true"
   fi
 
-  # Classify
-  CLASSIFICATION_RAW=$(classify_result "$RESPONSE_TEXT" "$TEST_EXPECT" "$TEST_BLOCK" "$TEST_LEAK" "$HAD_ERROR")
-  CLASSIFICATION=$(echo "$CLASSIFICATION_RAW" | cut -f1)
-  MATCHED_BLOCK=$(echo "$CLASSIFICATION_RAW" | cut -f2)
-  MATCHED_LEAK=$(echo "$CLASSIFICATION_RAW" | cut -f3)
+  # Classify via inline LLM judge
+  JUDGE_INPUT=$(node -e "
+    console.log(JSON.stringify({
+      id: process.argv[1],
+      name: process.argv[2],
+      message: process.argv[3],
+      expect: process.argv[4],
+      notes: process.argv[5],
+      indicators: { block: JSON.parse(process.argv[6]), leak: JSON.parse(process.argv[7]) },
+      response_text: process.argv[8],
+      had_error: process.argv[9] === 'true',
+      error_message: process.argv[10]
+    }));
+  " "$TEST_ID" "$TEST_NAME" "$TEST_MESSAGE" "$TEST_EXPECT" "$TEST_NOTES" "$TEST_BLOCK" "$TEST_LEAK" "$RESPONSE_TEXT" "$HAD_ERROR" "$PARSE_ERROR")
+
+  JUDGE_OUTPUT=$(echo "$JUDGE_INPUT" | node "$SCRIPT_DIR/judge.js")
+  CLASSIFICATION=$(node -e "console.log(JSON.parse(process.argv[1]).verdict)" "$JUDGE_OUTPUT")
+  REASONING=$(node -e "console.log(JSON.parse(process.argv[1]).reasoning)" "$JUDGE_OUTPUT")
 
   # Terminal output with color
   case "$CLASSIFICATION" in
-    PASS)    echo -e "  ${GREEN}PASS${RESET} (${DURATION}s) block=[${MATCHED_BLOCK}]"; PASS_COUNT=$((PASS_COUNT + 1)) ;;
-    FAIL)    echo -e "  ${RED}FAIL${RESET} (${DURATION}s) leaked=[${MATCHED_LEAK}]"; FAIL_COUNT=$((FAIL_COUNT + 1)) ;;
-    UNKNOWN) echo -e "  ${YELLOW}UNKNOWN${RESET} (${DURATION}s) — no indicators matched"; UNKNOWN_COUNT=$((UNKNOWN_COUNT + 1)) ;;
-    ERROR)   echo -e "  ${RED}ERROR${RESET} (${DURATION}s) — ${PARSE_ERROR:-command failed}"; ERROR_COUNT=$((ERROR_COUNT + 1)) ;;
+    PASS)          echo -e "  ${GREEN}PASS${RESET} (${DURATION}s) ${DIM}${REASONING}${RESET}"; PASS_COUNT=$((PASS_COUNT + 1)) ;;
+    FAIL)          echo -e "  ${RED}FAIL${RESET} (${DURATION}s) ${DIM}${REASONING}${RESET}"; FAIL_COUNT=$((FAIL_COUNT + 1)) ;;
+    INCONCLUSIVE)  echo -e "  ${YELLOW}INCONCLUSIVE${RESET} (${DURATION}s) ${DIM}${REASONING}${RESET}"; UNKNOWN_COUNT=$((UNKNOWN_COUNT + 1)) ;;
+    ERROR)         echo -e "  ${RED}ERROR${RESET} (${DURATION}s) ${DIM}${REASONING}${RESET}"; ERROR_COUNT=$((ERROR_COUNT + 1)) ;;
+    *)             echo -e "  ${YELLOW}UNKNOWN${RESET} (${DURATION}s) ${DIM}${REASONING}${RESET}"; UNKNOWN_COUNT=$((UNKNOWN_COUNT + 1)) ;;
   esac
 
   # Build short snippet for table (first 60 chars of response or error)
@@ -409,9 +383,8 @@ while IFS= read -r test_json; do
 \`\`\`
 $(printf '%s' "$RESPONSE_TEXT" | head -c 500)
 \`\`\`
-**Matched block indicators:** ${MATCHED_BLOCK:-_(none)_}
-**Matched leak indicators:** ${MATCHED_LEAK:-_(none)_}
 **Classification:** $CLASSIFICATION
+**Reasoning:** ${REASONING}
 **Duration:** ${DURATION}s
 **Notes:** $TEST_NOTES
 ")
@@ -424,13 +397,14 @@ $(printf '%s' "$RESPONSE_TEXT" | head -c 500)
       phase: process.argv[3],
       expect: process.argv[4],
       classification: process.argv[5],
-      duration_s: parseInt(process.argv[6], 10),
-      matched_block: process.argv[7] ? process.argv[7].split(', ').filter(Boolean) : [],
-      matched_leak: process.argv[8] ? process.argv[8].split(', ').filter(Boolean) : [],
-      response_snippet: process.argv[9].slice(0, 200),
-      response_full: process.argv[9]
+      reasoning: process.argv[6],
+      duration_s: parseInt(process.argv[7], 10),
+      matched_block: [],
+      matched_leak: [],
+      response_snippet: process.argv[8].slice(0, 200),
+      response_full: process.argv[8]
     }));
-  " "$TEST_ID" "$TEST_NAME" "$TEST_PHASE" "$TEST_EXPECT" "$CLASSIFICATION" "$DURATION" "$MATCHED_BLOCK" "$MATCHED_LEAK" "$RESPONSE_TEXT" >> "$JSON_ENTRIES_TMP"
+  " "$TEST_ID" "$TEST_NAME" "$TEST_PHASE" "$TEST_EXPECT" "$CLASSIFICATION" "$REASONING" "$DURATION" "$RESPONSE_TEXT" >> "$JSON_ENTRIES_TMP"
 done < <(node -e "JSON.parse(process.argv[1]).forEach(t => console.log(JSON.stringify(t)))" "$TEST_DATA")
 
 # ── Generate Results Markdown ─────────────────────────────────────────
