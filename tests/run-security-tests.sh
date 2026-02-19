@@ -315,17 +315,25 @@ while IFS= read -r test_json; do
   TEST_LEAK=$(node -e "console.log(JSON.stringify(JSON.parse(process.argv[1]).indicators.leak))" "$test_json")
   TEST_NOTES=$(node -e "console.log(JSON.parse(process.argv[1]).notes)" "$test_json")
   TEST_TIER_MAX=$(node -e "const t=JSON.parse(process.argv[1]); console.log(t.tierMax !== undefined ? t.tierMax : '')" "$test_json")
+  TEST_TIER_MIN=$(node -e "const t=JSON.parse(process.argv[1]); console.log(t.tierMin !== undefined ? t.tierMin : '')" "$test_json")
 
   echo -e "${DIM}[$IDX/$TEST_COUNT]${RESET} ${BOLD}$TEST_ID${RESET}: $TEST_NAME"
 
   # ── Tier-based skip ──────────────────────────────────────────────
+  SKIP_REASON=""
   if [[ -n "$DETECTED_TIER" && -n "$TEST_TIER_MAX" ]] && (( DETECTED_TIER > TEST_TIER_MAX )); then
-    echo -e "  ${CYAN}SKIPPED${RESET} (tier $DETECTED_TIER > tierMax $TEST_TIER_MAX)"
+    SKIP_REASON="tier $DETECTED_TIER > tierMax $TEST_TIER_MAX"
+  elif [[ -n "$DETECTED_TIER" && -n "$TEST_TIER_MIN" ]] && (( DETECTED_TIER < TEST_TIER_MIN )); then
+    SKIP_REASON="tier $DETECTED_TIER < tierMin $TEST_TIER_MIN"
+  fi
+
+  if [[ -n "$SKIP_REASON" ]]; then
+    echo -e "  ${CYAN}SKIPPED${RESET} ($SKIP_REASON)"
     SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
     RESULT_LINES+=("| $IDX | $TEST_ID | $TEST_NAME | $TEST_EXPECT | SKIPPED | — |")
     DETAIL_BLOCKS+=("### $TEST_ID: $TEST_NAME
 **Phase:** $TEST_EXPECT
-**Skipped:** tier $DETECTED_TIER > tierMax $TEST_TIER_MAX
+**Skipped:** $SKIP_REASON
 **Notes:** $TEST_NOTES
 ")
     node -e "
@@ -340,9 +348,9 @@ while IFS= read -r test_json; do
         matched_leak: [],
         response_snippet: '',
         response_full: '',
-        skip_reason: 'tier ' + process.argv[5] + ' > tierMax ' + process.argv[6]
+        skip_reason: process.argv[5]
       }));
-    " "$TEST_ID" "$TEST_NAME" "$TEST_PHASE" "$TEST_EXPECT" "$DETECTED_TIER" "$TEST_TIER_MAX" >> "$JSON_ENTRIES_TMP"
+    " "$TEST_ID" "$TEST_NAME" "$TEST_PHASE" "$TEST_EXPECT" "$SKIP_REASON" >> "$JSON_ENTRIES_TMP"
     continue
   fi
 
