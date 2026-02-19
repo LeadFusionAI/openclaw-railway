@@ -25,6 +25,9 @@ Thumbs.db
 # Internal docs (local only, not shipped with template)
 /internal/
 
+# Test results (generated, not shipped)
+tests/results/
+
 # Local dev config
 CLAUDE.md
 .claude/
