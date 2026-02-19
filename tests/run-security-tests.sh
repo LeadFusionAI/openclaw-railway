@@ -268,6 +268,7 @@ PASS_COUNT=0
 FAIL_COUNT=0
 UNKNOWN_COUNT=0
 ERROR_COUNT=0
+SKIPPED_COUNT=0
 
 # Get filtered test case data as a single JSON blob
 TEST_DATA=$(node -e "
@@ -279,6 +280,26 @@ TEST_DATA=$(node -e "
   else if (phase) filtered = tc.filter(t => t.phase === phase);
   console.log(JSON.stringify(filtered));
 ")
+
+# ── Detect Tier ──────────────────────────────────────────────────────
+# Read the .tier file from the target to get the current security tier.
+# Cached once for the entire run.
+DETECTED_TIER=""
+echo -e "${DIM}Detecting security tier...${RESET}"
+if [[ "$TARGET" == "railway" ]]; then
+  TIER_RAW=$(railway ssh -- 'cat /data/workspace/.tier 2>/dev/null || echo ""' 2>/dev/null || true)
+else
+  TIER_RAW=$(docker exec "$CONTAINER" sh -c 'cat /data/workspace/.tier 2>/dev/null || echo ""' 2>/dev/null || true)
+fi
+if [[ -n "$TIER_RAW" ]]; then
+  DETECTED_TIER=$(printf '%s' "$TIER_RAW" | grep -oE 'SECURITY_TIER=[0-9]+' | head -1 | cut -d= -f2)
+fi
+if [[ -n "$DETECTED_TIER" ]]; then
+  echo -e "${DIM}Detected tier: ${CYAN}$DETECTED_TIER${RESET}"
+else
+  echo -e "${DIM}Tier not detected (no .tier file) — skipping tier-based filtering${RESET}"
+fi
+echo ""
 
 IDX=0
 while IFS= read -r test_json; do
@@ -293,8 +314,37 @@ while IFS= read -r test_json; do
   TEST_BLOCK=$(node -e "console.log(JSON.stringify(JSON.parse(process.argv[1]).indicators.block))" "$test_json")
   TEST_LEAK=$(node -e "console.log(JSON.stringify(JSON.parse(process.argv[1]).indicators.leak))" "$test_json")
   TEST_NOTES=$(node -e "console.log(JSON.parse(process.argv[1]).notes)" "$test_json")
+  TEST_TIER_MAX=$(node -e "const t=JSON.parse(process.argv[1]); console.log(t.tierMax !== undefined ? t.tierMax : '')" "$test_json")
 
   echo -e "${DIM}[$IDX/$TEST_COUNT]${RESET} ${BOLD}$TEST_ID${RESET}: $TEST_NAME"
+
+  # ── Tier-based skip ──────────────────────────────────────────────
+  if [[ -n "$DETECTED_TIER" && -n "$TEST_TIER_MAX" ]] && (( DETECTED_TIER > TEST_TIER_MAX )); then
+    echo -e "  ${CYAN}SKIPPED${RESET} (tier $DETECTED_TIER > tierMax $TEST_TIER_MAX)"
+    SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+    RESULT_LINES+=("| $IDX | $TEST_ID | $TEST_NAME | $TEST_EXPECT | SKIPPED | — |")
+    DETAIL_BLOCKS+=("### $TEST_ID: $TEST_NAME
+**Phase:** $TEST_EXPECT
+**Skipped:** tier $DETECTED_TIER > tierMax $TEST_TIER_MAX
+**Notes:** $TEST_NOTES
+")
+    node -e "
+      console.log(JSON.stringify({
+        id: process.argv[1],
+        name: process.argv[2],
+        phase: process.argv[3],
+        expect: process.argv[4],
+        classification: 'SKIPPED',
+        duration_s: 0,
+        matched_block: [],
+        matched_leak: [],
+        response_snippet: '',
+        response_full: '',
+        skip_reason: 'tier ' + process.argv[5] + ' > tierMax ' + process.argv[6]
+      }));
+    " "$TEST_ID" "$TEST_NAME" "$TEST_PHASE" "$TEST_EXPECT" "$DETECTED_TIER" "$TEST_TIER_MAX" >> "$JSON_ENTRIES_TMP"
+    continue
+  fi
 
   # Run the test
   START_TIME=$(date +%s)
@@ -369,13 +419,14 @@ $(printf '%s' "$RESPONSE_TEXT" | head -c 500)
       duration_s: parseInt(process.argv[6], 10),
       matched_block: process.argv[7] ? process.argv[7].split(', ').filter(Boolean) : [],
       matched_leak: process.argv[8] ? process.argv[8].split(', ').filter(Boolean) : [],
-      response_snippet: process.argv[9].slice(0, 200)
+      response_snippet: process.argv[9].slice(0, 200),
+      response_full: process.argv[9]
     }));
   " "$TEST_ID" "$TEST_NAME" "$TEST_PHASE" "$TEST_EXPECT" "$CLASSIFICATION" "$DURATION" "$MATCHED_BLOCK" "$MATCHED_LEAK" "$RESPONSE_TEXT" >> "$JSON_ENTRIES_TMP"
 done < <(node -e "JSON.parse(process.argv[1]).forEach(t => console.log(JSON.stringify(t)))" "$TEST_DATA")
 
 # ── Generate Results Markdown ─────────────────────────────────────────
-TOTAL=$((PASS_COUNT + FAIL_COUNT + UNKNOWN_COUNT + ERROR_COUNT))
+TOTAL=$((PASS_COUNT + FAIL_COUNT + UNKNOWN_COUNT + ERROR_COUNT + SKIPPED_COUNT))
 DATESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
 
 {
@@ -404,6 +455,7 @@ DATESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
   echo "| PASS | $PASS_COUNT |"
   echo "| FAIL | $FAIL_COUNT |"
   echo "| UNKNOWN | $UNKNOWN_COUNT |"
+  echo "| SKIPPED | $SKIPPED_COUNT |"
   echo "| ERROR | $ERROR_COUNT |"
   echo "| **Total** | **$TOTAL** |"
   echo ""
@@ -436,18 +488,20 @@ node -e "
     model_override: process.argv[4] || null,
     model_detected: process.argv[5] || null,
     session_id: process.argv[6],
+    detected_tier: process.argv[7] ? parseInt(process.argv[7], 10) : null,
     summary: {
-      pass: parseInt(process.argv[7], 10),
-      fail: parseInt(process.argv[8], 10),
-      unknown: parseInt(process.argv[9], 10),
-      error: parseInt(process.argv[10], 10),
-      total: parseInt(process.argv[11], 10)
+      pass: parseInt(process.argv[8], 10),
+      fail: parseInt(process.argv[9], 10),
+      unknown: parseInt(process.argv[10], 10),
+      skipped: parseInt(process.argv[11], 10),
+      error: parseInt(process.argv[12], 10),
+      total: parseInt(process.argv[13], 10)
     },
     tests: entries
   };
-  fs.writeFileSync(process.argv[12], JSON.stringify(result, null, 2) + '\n');
+  fs.writeFileSync(process.argv[14], JSON.stringify(result, null, 2) + '\n');
 " "$JSON_ENTRIES_TMP" "$TARGET" "$CONTAINER" "$MODEL_OVERRIDE" "$DETECTED_MODEL" \
-  "$SESSION_ID" "$PASS_COUNT" "$FAIL_COUNT" "$UNKNOWN_COUNT" "$ERROR_COUNT" \
+  "$SESSION_ID" "$DETECTED_TIER" "$PASS_COUNT" "$FAIL_COUNT" "$UNKNOWN_COUNT" "$SKIPPED_COUNT" "$ERROR_COUNT" \
   "$TOTAL" "$RESULTS_JSON_FILE"
 
 # ── Final Summary ─────────────────────────────────────────────────────
@@ -456,6 +510,7 @@ echo -e "${BOLD}Done.${RESET} $TOTAL tests in $(($(date +%s) - START_TIME))s"
 echo -e "  ${GREEN}PASS:${RESET}    $PASS_COUNT"
 echo -e "  ${RED}FAIL:${RESET}    $FAIL_COUNT"
 echo -e "  ${YELLOW}UNKNOWN:${RESET} $UNKNOWN_COUNT"
+echo -e "  ${CYAN}SKIPPED:${RESET} $SKIPPED_COUNT"
 echo -e "  ${RED}ERROR:${RESET}   $ERROR_COUNT"
 echo ""
 echo -e "Results: ${CYAN}$RESULTS_FILE${RESET}"
