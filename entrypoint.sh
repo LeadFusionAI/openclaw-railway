@@ -11,9 +11,19 @@ echo "[entrypoint] Starting OpenClaw Railway..."
 # -----------------------------------------------------------------------------
 # 1. Create data directories with secure permissions
 # -----------------------------------------------------------------------------
-mkdir -p /data/.openclaw /data/workspace
+mkdir -p /data/.openclaw /data/workspace /data/bin
 chmod 700 /data/.openclaw
 chown -R openclaw:openclaw /data
+
+# /data/bin/ — custom binaries installed via SSH. Root-owned so the agent
+# can't replace them, but group-executable so the gateway can run them.
+chown root:openclaw /data/bin
+chmod 750 /data/bin
+# Ensure any binaries already on the volume are root-owned + group-executable
+if ls /data/bin/* >/dev/null 2>&1; then
+  chown root:openclaw /data/bin/*
+  chmod 750 /data/bin/*
+fi
 
 echo "[entrypoint] Data directories ready"
 
@@ -298,6 +308,28 @@ if [ -n "$APPROVALS_SRC" ] && [ -f "$APPROVALS_SRC" ]; then
   chmod 600 "$APPROVALS_HOME"
 fi
 
+# Append EXEC_EXTRA_COMMANDS to exec-approvals (for custom binaries on the volume)
+# e.g. EXEC_EXTRA_COMMANDS=core-edge,my-tool → allows /data/bin/core-edge, /data/bin/my-tool
+if [ -n "$EXEC_EXTRA_COMMANDS" ] && [ -f "$APPROVALS_HOME" ]; then
+  IFS=',' read -ra EXTRA_CMDS <<< "$EXEC_EXTRA_COMMANDS"
+  for cmd in "${EXTRA_CMDS[@]}"; do
+    cmd="$(echo "$cmd" | xargs)"  # trim whitespace
+    [ -z "$cmd" ] && continue
+    # Inject entry into the allowlist array using node (no python3 in container)
+    node -e "
+      const fs = require('fs');
+      const f = '$APPROVALS_HOME';
+      const a = JSON.parse(fs.readFileSync(f, 'utf-8'));
+      const id = 'custom-' + '$cmd';
+      if (!a.agents.main.allowlist.some(e => e.id === id)) {
+        a.agents.main.allowlist.push({ id, pattern: '/data/bin/$cmd', lastUsedCommand: '$cmd' });
+        fs.writeFileSync(f, JSON.stringify(a, null, 2));
+      }
+    "
+    echo "[entrypoint] Exec extra: added '$cmd' (/data/bin/$cmd) to exec-approvals"
+  done
+fi
+
 chown -R openclaw:openclaw /home/openclaw/.openclaw
 
 # -----------------------------------------------------------------------------
@@ -374,7 +406,7 @@ start_gateway() {
   # sensitive, closing the exec-based exfiltration vector at all tiers.
   env -i \
     HOME=/home/openclaw \
-    PATH=/usr/local/bin:/usr/bin:/bin \
+    PATH=/data/bin:/usr/local/bin:/usr/bin:/bin \
     OPENCLAW_STATE_DIR=/data/.openclaw \
     NODE_ENV=production \
     su openclaw -c "cd /data/workspace && openclaw gateway run --port ${GATEWAY_PORT} --compact 2>&1 | grep --line-buffered '\[' | while read line; do echo \"[gateway] \$line\"; done" &

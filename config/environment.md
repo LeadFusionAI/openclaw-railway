@@ -181,6 +181,17 @@ Semantic memory search (`memory_search`) requires an embeddings provider. The te
 LLM_EMBEDDING_MODEL=openai/text-embedding-3-large
 ```
 
+## Custom Binaries
+
+Install custom tools to `/data/bin/` (persists on the Railway volume across redeploys). SSH in once to install, then set env vars so the entrypoint wires permissions and credentials automatically on every deploy.
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `EXEC_EXTRA_COMMANDS` | Comma-separated binary names to add to exec allowlist | `core-edge,my-tool` |
+| `EXTRA_ENV_KEYS` | Comma-separated env var names to pass through to the gateway | `CORE_URL,CORE_API_KEY` |
+
+Binaries must be installed at `/data/bin/<name>`. The entrypoint adds `/data/bin/` to the gateway's PATH and appends each binary to exec-approvals so the agent can use them. At Tier 2+, exec is unrestricted so `EXEC_EXTRA_COMMANDS` has no effect (but `EXTRA_ENV_KEYS` still works).
+
 ## Optional
 
 | Variable | Description |

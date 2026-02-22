@@ -320,6 +320,21 @@ function buildConfig() {
     }
   }
 
+  // --- Extra Environment Keys ---
+  // Pass through user-specified env vars (e.g. for custom binaries on the volume).
+  // EXTRA_ENV_KEYS=CORE_URL,CORE_API_KEY → injects those into config.env
+  if (process.env.EXTRA_ENV_KEYS) {
+    const extraKeys = process.env.EXTRA_ENV_KEYS.split(',').map(s => s.trim()).filter(Boolean);
+    for (const key of extraKeys) {
+      if (process.env[key]) {
+        config.env[key] = process.env[key];
+      } else {
+        console.log(`[build-config] WARNING: EXTRA_ENV_KEYS lists '${key}' but it is not set`);
+      }
+    }
+    console.log(`[build-config] Extra env keys injected: ${extraKeys.filter(k => process.env[k]).join(', ') || 'none'}`);
+  }
+
   // --- Agent Identity ---
   // OpenClaw moved identity under agents.list[] (top-level identity is legacy)
   if (process.env.AGENT_NAME) {
