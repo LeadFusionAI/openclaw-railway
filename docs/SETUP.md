@@ -18,7 +18,7 @@ This walkthrough takes you from no accounts to a working AI assistant in about 1
 
 [Railway](https://railway.com?referralCode=slayga) is a container hosting platform — it runs your bot in the cloud so it stays online 24/7.
 
-1. Go to [railway.com](https://railway.com?referralCode=slayga) and sign up (GitHub login or email)
+1. Go to [railway.com](https://railway.com?referralCode=slayga) and sign up (GitHub login or email) — the links in this guide include a referral code that gives you **$20 in free Railway credits**
 2. Subscribe to the **Hobby plan** ($5/mo)
    - The trial works for testing, but services pause after the free tier limits
    - The Hobby plan includes $5 of resource usage per month — this template typically uses less than that

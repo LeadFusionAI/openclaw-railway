@@ -12,7 +12,7 @@
 
 ## What You Need
 
-- **Railway account** with Hobby plan ($5/mo — [pricing](https://railway.com/pricing?referralCode=slayga)). This covers the hosting.
+- **Railway account** with Hobby plan ($5/mo — [pricing](https://railway.com/pricing?referralCode=slayga)). This covers the hosting. Links in this guide include a referral code — you get **$20 in free Railway credits** when you sign up through them.
 - **OpenRouter API key** — one key, all LLM models. Free to create, pay per use. ([Get one](https://openrouter.ai/keys))
 - **Telegram** — to talk to your bot. ([Get the app](https://telegram.org))
 
