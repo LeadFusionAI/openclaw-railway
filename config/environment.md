@@ -199,6 +199,7 @@ The `web_search` tool is available at all tiers but requires a Brave Search API 
 | Variable | Description |
 |----------|-------------|
 | `BRAVE_API_KEY` | Brave Search API key — enables `web_search` tool. Get one at https://brave.com/search/api/ |
+| `BRAVE_SEARCH_MODE` | Set to `llm-context` for LLM-grounded snippets with source metadata (v2026.3.8+). Default: standard mode |
 
 ## Optional
 
@@ -206,6 +207,7 @@ The `web_search` tool is available at all tiers but requires a Brave Search API 
 |----------|-------------|
 | `AGENT_NAME` | Display name for your agent |
 | `WORKSPACE_DIR` | Workspace directory path |
+| `LLM_HEARTBEAT_LIGHT_CONTEXT` | Set to `true` to skip bootstrap-file injection during heartbeat/cron turns — reduces token usage. Useful when heartbeats only need `HEARTBEAT.md` context |
 
 ---
 

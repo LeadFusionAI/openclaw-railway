@@ -146,7 +146,7 @@ This is a capable starting point. You're a thinking partner with file access, we
     TIER_EXEC_COMMANDS="any"
     TIER_INJECT_BLOCK="You are running at **Tier 2 — Power User**.
 
-**Your tools:** read, write, edit, exec (full), memory_get, memory_search, web_fetch, cron, browser, process, sessions_spawn, agents_list
+**Your tools:** read, write, edit, exec (full), memory_get, memory_search, web_fetch, cron, browser, process, sessions_spawn, sessions_yield, agents_list
 **Exec commands:** Any command. No approval gate.
 **Blocked tools:** nodes, gateway
 
@@ -169,6 +169,7 @@ Confirm before running unfamiliar commands. Sub-agents inherit your permissions 
 | browser | ✅ | Web browsing |
 | process | ✅ | Process management |
 | sessions_spawn | ✅ | Spawn sub-sessions |
+| sessions_yield | ✅ | Yield orchestrator turns |
 | agents_list | ✅ | List available agents |
 | nodes | ❌ | Blocked |
 | gateway | ❌ | Blocked |
@@ -180,7 +181,7 @@ Confirm before running unfamiliar commands. Sub-agents inherit your permissions 
     TIER_EXEC_COMMANDS="any"
     TIER_INJECT_BLOCK="You are running at **Tier 2 — Power User** (Tier 3 requested but requires SSH to complete).
 
-**Your tools:** read, write, edit, exec (full), memory_get, memory_search, web_fetch, cron, browser, process, sessions_spawn, agents_list
+**Your tools:** read, write, edit, exec (full), memory_get, memory_search, web_fetch, cron, browser, process, sessions_spawn, sessions_yield, agents_list
 **Exec commands:** Any command. No approval gate.
 **Blocked tools:** nodes, gateway
 
@@ -205,6 +206,7 @@ Check for a \`.tier-status\` file in the workspace — your user set SECURITY_TI
 | browser | ✅ | Web browsing |
 | process | ✅ | Process management |
 | sessions_spawn | ✅ | Spawn sub-sessions |
+| sessions_yield | ✅ | Yield orchestrator turns |
 | agents_list | ✅ | List available agents |
 | nodes | ❌ | Blocked |
 | gateway | ❌ | Blocked |
@@ -397,6 +399,16 @@ fi
 #     gateway loads it). The gateway starts with env -i so /proc/self/environ
 #     is empty. No env var scrubbing needed — they never reach the gateway.
 # -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# 4d. Run doctor --fix for legacy migration (v2026.3.11+ cron isolation)
+#     Existing volumes may have legacy cron storage/delivery metadata that
+#     causes failures after upgrade. doctor --fix migrates safely.
+# -----------------------------------------------------------------------------
+echo "[entrypoint] Running doctor --fix for legacy migrations..."
+su openclaw -c "OPENCLAW_STATE_DIR=/data/.openclaw openclaw doctor --fix 2>&1" | while read line; do
+  echo "[doctor] $line"
+done || echo "[entrypoint] doctor --fix returned non-zero (may be normal on fresh installs)"
 
 # -----------------------------------------------------------------------------
 # 5. Start OpenClaw gateway (if configured)

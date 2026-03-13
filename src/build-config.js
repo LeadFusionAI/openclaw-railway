@@ -87,7 +87,7 @@ function applySecurityTier(config, tier) {
     config.tools.allow = [
       'read', 'write', 'edit', 'memory_get', 'memory_search',
       'web_search', 'web_fetch', 'exec', 'cron', 'image',
-      'process', 'browser', 'sessions_spawn', 'agents_list',
+      'process', 'browser', 'sessions_spawn', 'sessions_yield', 'agents_list',
     ];
     config.tools.deny = ['nodes', 'gateway'];
 
@@ -217,6 +217,11 @@ function buildConfig() {
       provider: 'brave',
       apiKey: process.env.BRAVE_API_KEY,
     };
+    // Opt-in LLM-grounded snippets mode (v2026.3.8+)
+    if (process.env.BRAVE_SEARCH_MODE === 'llm-context') {
+      config.tools.web.search.brave = { mode: 'llm-context' };
+      console.log('[build-config] Brave Search: llm-context mode enabled');
+    }
     console.log('[build-config] Brave Search: API key configured for web_search');
   }
 
@@ -234,6 +239,13 @@ function buildConfig() {
   if (process.env.LLM_HEARTBEAT_MODEL) {
     config.agents.defaults.heartbeat = config.agents.defaults.heartbeat || {};
     config.agents.defaults.heartbeat.model = process.env.LLM_HEARTBEAT_MODEL;
+  }
+
+  // Lightweight heartbeat context (v2026.3.1+) — reduces token usage for cron/heartbeat turns
+  if (process.env.LLM_HEARTBEAT_LIGHT_CONTEXT === 'true') {
+    config.agents.defaults.heartbeat = config.agents.defaults.heartbeat || {};
+    config.agents.defaults.heartbeat.lightContext = true;
+    console.log('[build-config] Heartbeat: light context mode enabled (skips bootstrap injection)');
   }
 
   if (process.env.LLM_SUBAGENT_MODEL) {
@@ -261,6 +273,13 @@ function buildConfig() {
     // Groups require mention by default
     config.channels.telegram.groups = config.channels.telegram.groups || {};
     config.channels.telegram.groups['*'] = { requireMention: true };
+
+    // Streaming mode: off (default), partial, block, progress
+    // progress shows tool execution steps in real-time without draft flashing
+    if (process.env.STREAMING_MODE) {
+      config.channels.telegram.streaming = process.env.STREAMING_MODE;
+      console.log(`[build-config] Telegram streaming: ${process.env.STREAMING_MODE}`);
+    }
 
     // Enable the Telegram plugin (separate from channel config)
     config.plugins = config.plugins || {};
