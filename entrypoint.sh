@@ -406,9 +406,9 @@ fi
 #     causes failures after upgrade. doctor --fix migrates safely.
 # -----------------------------------------------------------------------------
 echo "[entrypoint] Running doctor --fix for legacy migrations..."
-su openclaw -c "OPENCLAW_STATE_DIR=/data/.openclaw openclaw doctor --fix 2>&1" | while read line; do
+timeout 15 su openclaw -c "OPENCLAW_STATE_DIR=/data/.openclaw openclaw doctor --fix 2>&1" | while read line; do
   echo "[doctor] $line"
-done || echo "[entrypoint] doctor --fix returned non-zero (may be normal on fresh installs)"
+done || echo "[entrypoint] doctor --fix returned non-zero or timed out (may be normal)"
 
 # -----------------------------------------------------------------------------
 # 5. Start OpenClaw gateway (if configured)
