@@ -401,14 +401,10 @@ fi
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
-# 4d. Run doctor --fix for legacy migration (v2026.3.11+ cron isolation)
-#     Existing volumes may have legacy cron storage/delivery metadata that
-#     causes failures after upgrade. doctor --fix migrates safely.
+# 4d. Doctor --fix disabled — was corrupting gateway state on volumes where
+#     /data/.openclaw is root-owned (doctor can't write as openclaw user).
+#     Run manually via SSH if needed: openclaw doctor --fix
 # -----------------------------------------------------------------------------
-echo "[entrypoint] Running doctor --fix for legacy migrations..."
-timeout 15 su openclaw -c "OPENCLAW_STATE_DIR=/data/.openclaw openclaw doctor --fix 2>&1" | while read line; do
-  echo "[doctor] $line"
-done || echo "[entrypoint] doctor --fix returned non-zero or timed out (may be normal)"
 
 # -----------------------------------------------------------------------------
 # 5. Start OpenClaw gateway (if configured)
