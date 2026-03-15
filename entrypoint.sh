@@ -418,12 +418,47 @@ start_gateway() {
   # config file — the gateway reads them at startup, not from process.env.
   # This means /proc/self/environ for the gateway process contains nothing
   # sensitive, closing the exec-based exfiltration vector at all tiers.
+  #
+  # Gateway stdout is piped through log-bridge.js which:
+  # - Passes through lines containing '[' to stdout (same as old grep chain)
+  # - When TOOL_OBSERVER_ENABLED=true, also extracts tool events and batches
+  #   them to the configured channel (Telegram/Discord)
+
+  # Build log-bridge CLI args
+  LOG_BRIDGE_ARGS=""
+  if [ "${TOOL_OBSERVER_ENABLED:-false}" = "true" ]; then
+    # Auto-detect channel and credentials
+    OBSERVER_CHANNEL=""
+    OBSERVER_TOKEN=""
+    OBSERVER_CHAT_ID="${TOOL_OBSERVER_CHAT_ID:-}"
+
+    if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
+      OBSERVER_CHANNEL="telegram"
+      OBSERVER_TOKEN="$TELEGRAM_BOT_TOKEN"
+      OBSERVER_CHAT_ID="${OBSERVER_CHAT_ID:-$TELEGRAM_OWNER_ID}"
+    elif [ -n "$DISCORD_BOT_TOKEN" ]; then
+      OBSERVER_CHANNEL="discord"
+      OBSERVER_TOKEN="$DISCORD_BOT_TOKEN"
+      OBSERVER_CHAT_ID="${OBSERVER_CHAT_ID:-$DISCORD_OWNER_ID}"
+    fi
+
+    if [ -n "$OBSERVER_CHANNEL" ] && [ -n "$OBSERVER_TOKEN" ] && [ -n "$OBSERVER_CHAT_ID" ]; then
+      LOG_BRIDGE_ARGS="--observer=true --channel=${OBSERVER_CHANNEL} --token=${OBSERVER_TOKEN} --chat-id=${OBSERVER_CHAT_ID}"
+      [ -n "${TOOL_OBSERVER_THREAD_ID:-}" ] && LOG_BRIDGE_ARGS="${LOG_BRIDGE_ARGS} --thread-id=${TOOL_OBSERVER_THREAD_ID}"
+      [ -n "${TOOL_OBSERVER_VERBOSITY:-}" ] && LOG_BRIDGE_ARGS="${LOG_BRIDGE_ARGS} --verbosity=${TOOL_OBSERVER_VERBOSITY}"
+      [ -n "${TOOL_OBSERVER_BATCH_MS:-}" ] && LOG_BRIDGE_ARGS="${LOG_BRIDGE_ARGS} --batch-ms=${TOOL_OBSERVER_BATCH_MS}"
+      echo "[entrypoint] Tool Observer enabled (channel: ${OBSERVER_CHANNEL}, chat: ${OBSERVER_CHAT_ID})"
+    else
+      echo "[entrypoint] WARNING: TOOL_OBSERVER_ENABLED=true but missing channel credentials — observer disabled"
+    fi
+  fi
+
   env -i \
     HOME=/home/openclaw \
     PATH=/data/bin:/usr/local/bin:/usr/bin:/bin \
     OPENCLAW_STATE_DIR=/data/.openclaw \
     NODE_ENV=production \
-    su openclaw -c "cd /data/workspace && openclaw gateway run --port ${GATEWAY_PORT} --compact 2>&1 | grep --line-buffered '\[' | while read line; do echo \"[gateway] \$line\"; done" &
+    su openclaw -c "cd /data/workspace && openclaw gateway run --port ${GATEWAY_PORT} --compact 2>&1" | node /app/src/log-bridge.js ${LOG_BRIDGE_ARGS} &
   GATEWAY_PID=$!
 
   sleep 3

@@ -201,6 +201,22 @@ The `web_search` tool is available at all tiers but requires a Brave Search API 
 | `BRAVE_API_KEY` | Brave Search API key — enables `web_search` tool. Get one at https://brave.com/search/api/ |
 | `BRAVE_SEARCH_MODE` | Set to `llm-context` for LLM-grounded snippets with source metadata (v2026.3.8+). Default: standard mode |
 
+## Tool Observer
+
+See what your agent is doing in real-time. When enabled, tool call events (read, write, exec, web_fetch, etc.) are batched and sent to your Telegram topic or Discord thread as silent notifications.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `TOOL_OBSERVER_ENABLED` | Enable tool observer | `false` |
+| `TOOL_OBSERVER_CHAT_ID` | Chat/channel ID to send events to | Owner ID |
+| `TOOL_OBSERVER_THREAD_ID` | Telegram topic or Discord thread ID | None |
+| `TOOL_OBSERVER_VERBOSITY` | `minimal` (tool name only), `normal` (with summary), `verbose` (with duration/status) | `normal` |
+| `TOOL_OBSERVER_BATCH_MS` | Batch window before sending (ms) | `2000` |
+
+**Recommended setup:** Create a dedicated Telegram topic (thread) for tool activity so it doesn't clutter your main chat. Set `TOOL_OBSERVER_THREAD_ID` to that topic's ID.
+
+**Note:** Enabling the observer forces gateway log level to `info` with JSON output. This increases log volume in Railway but is required for the observer to see tool events.
+
 ## Optional
 
 | Variable | Description |

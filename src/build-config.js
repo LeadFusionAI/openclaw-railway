@@ -338,6 +338,16 @@ function buildConfig() {
   // Required for headless start
   config.gateway.mode = 'local';
 
+  // --- Tool Observer logging overrides ---
+  // When the observer is enabled, we need info-level JSON logs so tool events
+  // appear in gateway stdout for log-bridge.js to parse.
+  if (process.env.TOOL_OBSERVER_ENABLED === 'true') {
+    config.logging = config.logging || {};
+    config.logging.consoleLevel = 'info';
+    config.logging.consoleStyle = 'json';
+    console.log('[build-config] Tool Observer: forced consoleLevel=info, consoleStyle=json');
+  }
+
   // --- Provider Keys in Config ---
   // Inject provider API keys into config's env block so the gateway reads them
   // from the config file rather than process.env. This allows the entrypoint to
