@@ -54,7 +54,6 @@ const TOKEN = args.token || '';
 const CHAT_ID = args['chat-id'] || '';
 const THREAD_ID = args['thread-id'] || '';
 const VERBOSITY = args.verbosity || 'normal';
-const BATCH_MS = parseInt(args['batch-ms'] || '2000', 10);
 const SESSIONS_DIR = args['sessions-dir'] || '/data/.openclaw/agents/main/sessions';
 
 // ---------------------------------------------------------------------------
@@ -80,28 +79,10 @@ const TOOL_ICONS = {
 };
 
 // ---------------------------------------------------------------------------
-// Event batching
+// Send tool events immediately — one message per tool call
 // ---------------------------------------------------------------------------
-let eventBatch = [];
-let batchTimer = null;
-
-function flushBatch() {
-  batchTimer = null;
-  if (eventBatch.length === 0) return;
-
-  const lines = eventBatch.splice(0);
-  const header = '\u{1F527} Tool Activity\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501';
-  const body = lines.join('\n');
-  const message = `${header}\n${body}`;
-
-  sendMessage(message);
-}
-
-function queueEvent(line) {
-  eventBatch.push(line);
-  if (!batchTimer) {
-    batchTimer = setTimeout(flushBatch, BATCH_MS);
-  }
+function emitEvent(line) {
+  sendMessage(line);
 }
 
 // ---------------------------------------------------------------------------
@@ -273,7 +254,7 @@ function tailNewLines(filePath) {
       if (!line.trim()) continue;
       const events = extractToolEvents(line);
       for (const ev of events) {
-        queueEvent(ev);
+        emitEvent(ev);
       }
     }
   } catch {
@@ -317,16 +298,7 @@ rl.on('line', (line) => {
   }
 });
 
-rl.on('close', () => {
-  // Flush any remaining observer events before exit
-  if (batchTimer) {
-    clearTimeout(batchTimer);
-    batchTimer = null;
-  }
-  if (eventBatch.length > 0) {
-    flushBatch();
-  }
-});
+rl.on('close', () => {});
 
 // ---------------------------------------------------------------------------
 // Start observer if enabled

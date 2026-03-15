@@ -211,7 +211,6 @@ See what your agent is doing in real-time. When enabled, tool call events (read,
 | `TOOL_OBSERVER_CHAT_ID` | Chat/channel ID to send events to | Owner ID |
 | `TOOL_OBSERVER_THREAD_ID` | Telegram topic or Discord thread ID | None |
 | `TOOL_OBSERVER_VERBOSITY` | `minimal` (tool name only), `normal` (with summary), `verbose` (with duration/status) | `normal` |
-| `TOOL_OBSERVER_BATCH_MS` | Batch window before sending (ms) | `2000` |
 
 **Recommended setup:** Create a dedicated Telegram topic (thread) for tool activity so it doesn't clutter your main chat. Set `TOOL_OBSERVER_THREAD_ID` to that topic's ID.
 

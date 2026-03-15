@@ -446,7 +446,6 @@ start_gateway() {
       LOG_BRIDGE_ARGS="--observer=true --channel=${OBSERVER_CHANNEL} --token=${OBSERVER_TOKEN} --chat-id=${OBSERVER_CHAT_ID}"
       [ -n "${TOOL_OBSERVER_THREAD_ID:-}" ] && LOG_BRIDGE_ARGS="${LOG_BRIDGE_ARGS} --thread-id=${TOOL_OBSERVER_THREAD_ID}"
       [ -n "${TOOL_OBSERVER_VERBOSITY:-}" ] && LOG_BRIDGE_ARGS="${LOG_BRIDGE_ARGS} --verbosity=${TOOL_OBSERVER_VERBOSITY}"
-      [ -n "${TOOL_OBSERVER_BATCH_MS:-}" ] && LOG_BRIDGE_ARGS="${LOG_BRIDGE_ARGS} --batch-ms=${TOOL_OBSERVER_BATCH_MS}"
       echo "[entrypoint] Tool Observer enabled (channel: ${OBSERVER_CHANNEL}, chat: ${OBSERVER_CHAT_ID})"
     else
       echo "[entrypoint] WARNING: TOOL_OBSERVER_ENABLED=true but missing channel credentials — observer disabled"
