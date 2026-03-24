@@ -578,15 +578,13 @@ start_gateway() {
   fi
 
   # Build the env var passthrough from the secrets file.
-  # Each line in .secrets.env is KEY=VALUE — we convert to env -i arguments.
-  # Use cut to split on first '=' only (values may contain '=' chars, e.g. base64).
-  SECRETS_PASSTHROUGH=""
+  # Each line in .secrets.env is KEY=VALUE — store as array elements so values
+  # containing spaces or special characters are preserved (no word-splitting).
+  SECRETS_ARGS=()
   if [ -f "$SECRETS_ENV_FILE" ]; then
     while IFS= read -r line; do
       [ -z "$line" ] && continue
-      key="$(echo "$line" | cut -d= -f1)"
-      val="$(echo "$line" | cut -d= -f2-)"
-      SECRETS_PASSTHROUGH="$SECRETS_PASSTHROUGH $key=$val"
+      SECRETS_ARGS+=("$line")
     done < "$SECRETS_ENV_FILE"
   fi
 
@@ -595,7 +593,7 @@ start_gateway() {
     PATH=/data/bin:/usr/local/bin:/usr/bin:/bin \
     OPENCLAW_STATE_DIR=/data/.openclaw \
     NODE_ENV=production \
-    $SECRETS_PASSTHROUGH \
+    "${SECRETS_ARGS[@]}" \
     su openclaw -c "cd /data/workspace && openclaw gateway run --port ${GATEWAY_PORT} --compact 2>&1" | node /app/src/log-bridge.js ${LOG_BRIDGE_ARGS} &
   GATEWAY_PID=$!
 
