@@ -568,7 +568,11 @@ start_gateway() {
     fi
 
     if [ -n "$OBSERVER_CHANNEL" ] && [ -n "$OBSERVER_TOKEN" ] && [ -n "$OBSERVER_CHAT_ID" ]; then
-      LOG_BRIDGE_ARGS="--observer=true --channel=${OBSERVER_CHANNEL} --token=${OBSERVER_TOKEN} --chat-id=${OBSERVER_CHAT_ID}"
+      # Pass token via temp file instead of CLI arg — CLI args are visible in /proc/pid/cmdline
+      OBSERVER_TOKEN_FILE=$(mktemp /tmp/observer-token.XXXXXX)
+      printf '%s' "$OBSERVER_TOKEN" > "$OBSERVER_TOKEN_FILE"
+      chmod 600 "$OBSERVER_TOKEN_FILE"
+      LOG_BRIDGE_ARGS="--observer=true --channel=${OBSERVER_CHANNEL} --token-file=${OBSERVER_TOKEN_FILE} --chat-id=${OBSERVER_CHAT_ID}"
       [ -n "${TOOL_OBSERVER_THREAD_ID:-}" ] && LOG_BRIDGE_ARGS="${LOG_BRIDGE_ARGS} --thread-id=${TOOL_OBSERVER_THREAD_ID}"
       [ -n "${TOOL_OBSERVER_VERBOSITY:-}" ] && LOG_BRIDGE_ARGS="${LOG_BRIDGE_ARGS} --verbosity=${TOOL_OBSERVER_VERBOSITY}"
       echo "[entrypoint] Tool Observer enabled (channel: ${OBSERVER_CHANNEL}, chat: ${OBSERVER_CHAT_ID})"

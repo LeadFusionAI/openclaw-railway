@@ -50,7 +50,13 @@ for (const arg of process.argv.slice(2)) {
 
 const OBSERVER_ENABLED = args.observer === 'true';
 const CHANNEL = args.channel || 'telegram';
-const TOKEN = args.token || '';
+let TOKEN = args.token || '';
+if (args['token-file']) {
+  try {
+    TOKEN = fs.readFileSync(args['token-file'], 'utf-8').trim();
+    fs.unlinkSync(args['token-file']); // delete after reading — never persists on disk
+  } catch {}
+}
 const CHAT_ID = args['chat-id'] || '';
 const THREAD_ID = args['thread-id'] || '';
 const VERBOSITY = args.verbosity || 'normal';
