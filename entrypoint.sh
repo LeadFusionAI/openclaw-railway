@@ -606,11 +606,12 @@ start_gateway() {
     # Verify the config file on disk has no plaintext secrets.
     # SecretRef fields should be objects with "source" key, not strings.
     # This catches regressions where we accidentally write literals.
-    SECRETREF_VALIDATION_FAILED=false
+    #
+    # Previous implementation piped node output through `while read` which
+    # ran in a subshell — SECRETREF_VALIDATION_FAILED never propagated.
+    # Now we capture into a variable so the parent shell can act on it.
     if [ -f "$CONFIG_FILE" ]; then
-      # Check for common secret patterns that should NOT be in the config
-      # (API key prefixes, bot token format). Use node for reliable JSON parsing.
-      node -e "
+      SECRETREF_RESULT=$(node -e "
         const fs = require('fs');
         const config = JSON.parse(fs.readFileSync('$CONFIG_FILE', 'utf-8'));
         const errors = [];
@@ -663,16 +664,20 @@ start_gateway() {
         } else {
           console.log('SECRETREF_OK');
         }
-      " 2>/dev/null | while IFS= read -r line; do
-        if [ "$line" = "SECRETREF_FAIL" ]; then
-          echo "[entrypoint] ERROR: SecretRef validation FAILED — plaintext secrets in config!"
-          SECRETREF_VALIDATION_FAILED=true
-        elif [ "$line" = "SECRETREF_OK" ]; then
-          echo "[entrypoint] SecretRef validation: OK (no plaintext secrets in config)"
-        else
-          echo "[entrypoint] $line"
-        fi
-      done
+      " 2>/dev/null)
+
+      if echo "$SECRETREF_RESULT" | grep -q "SECRETREF_FAIL"; then
+        echo "[entrypoint] ERROR: SecretRef validation FAILED — plaintext secrets in config!"
+        echo "$SECRETREF_RESULT" | grep "^  -" | while IFS= read -r detail; do
+          echo "[entrypoint] $detail"
+        done
+        echo "[entrypoint] FATAL: Refusing to run with plaintext secrets. Fix build-config.js."
+        kill $GATEWAY_PID 2>/dev/null
+        rm -f "$SECRETS_ENV_FILE"
+        exit 1
+      elif echo "$SECRETREF_RESULT" | grep -q "SECRETREF_OK"; then
+        echo "[entrypoint] SecretRef validation: OK (no plaintext secrets in config)"
+      fi
     fi
 
     # Config stays at 640 root:openclaw (set in step 4b).
