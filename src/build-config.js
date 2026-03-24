@@ -300,6 +300,8 @@ function buildConfig() {
     config.channels.telegram.botToken = secretRef('TELEGRAM_BOT_TOKEN');
 
     if (process.env.TELEGRAM_OWNER_ID) {
+      // Telegram user IDs are numeric — parseInt matches what the Bot API sends.
+      // Discord/Slack use string IDs, which is correct for their platforms.
       const ownerId = parseInt(process.env.TELEGRAM_OWNER_ID, 10);
       config.channels.telegram.allowFrom = config.channels.telegram.allowFrom || [];
       if (!config.channels.telegram.allowFrom.includes(ownerId)) {

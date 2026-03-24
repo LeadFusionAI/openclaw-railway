@@ -482,6 +482,11 @@ for key in ANTHROPIC_API_KEY OPENAI_API_KEY GOOGLE_AI_API_KEY OPENROUTER_API_KEY
   [ -n "$val" ] && printf '%s=%s\n' "$key" "$val" >> "$SECRETS_ENV_FILE"
 done
 
+# Transcription provider
+if [ -n "${DEEPGRAM_API_KEY:-}" ]; then
+  printf '%s=%s\n' "DEEPGRAM_API_KEY" "$DEEPGRAM_API_KEY" >> "$SECRETS_ENV_FILE"
+fi
+
 # Channel tokens
 for key in TELEGRAM_BOT_TOKEN DISCORD_BOT_TOKEN SLACK_BOT_TOKEN SLACK_APP_TOKEN; do
   val="$(eval echo "\${${key}:-}")"
