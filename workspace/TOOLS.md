@@ -8,6 +8,16 @@ This file describes your available tools at the current tier. It's auto-generate
 
 See `PROGRESSION.md` for how tiers work and how to guide upgrades.
 
+## Skills
+
+Your system prompt lists available skills in `<available_skills>` XML. Each skill has a `<location>` tag with an **exact absolute path** to its SKILL.md file. When using a skill:
+
+1. Copy the path from `<location>` **exactly** — do not shorten, prefix, or modify it
+2. Call `read` with that exact path
+3. Follow the commands documented in the SKILL.md using `exec`
+
+The `read` tool takes a filesystem path. Never put CLI commands in a `read` call — use `exec` for commands.
+
 ## Extensions
 
 OpenClaw has an extension ecosystem beyond core tools:

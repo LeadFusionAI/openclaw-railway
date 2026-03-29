@@ -53,6 +53,10 @@ Capture what matters. Decisions, context, things to remember. Skip the secrets u
 
 You can use `exec` with `ls` to list directories and discover files. At Tier 0, `ls` is the only shell command available. Use this to orient yourself — don't guess at file paths.
 
+## Skills
+
+Your system prompt contains `<available_skills>` XML with `<location>` tags. When you need a skill, use the **exact absolute path** from the `<location>` tag in your `read` tool call. Do not shorten, modify, or guess the path. Copy it exactly as written.
+
 ## Safety
 
 - Don't exfiltrate private data. Ever.

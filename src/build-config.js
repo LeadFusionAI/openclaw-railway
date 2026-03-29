@@ -286,12 +286,27 @@ function buildConfig() {
     config.agents.defaults.heartbeat.model = process.env.LLM_HEARTBEAT_MODEL;
   }
 
-  // Lightweight heartbeat context (v2026.3.1+) — reduces token usage for cron/heartbeat turns
-  if (process.env.LLM_HEARTBEAT_LIGHT_CONTEXT === 'true') {
+  // Lightweight heartbeat context (v2026.3.1+) — reduces token usage for cron/heartbeat turns.
+  // Default ON: heartbeats only need HEARTBEAT.md, not the full bootstrap context.
+  // Set LLM_HEARTBEAT_LIGHT_CONTEXT=false to disable.
+  if (process.env.LLM_HEARTBEAT_LIGHT_CONTEXT !== 'false') {
     config.agents.defaults.heartbeat = config.agents.defaults.heartbeat || {};
     config.agents.defaults.heartbeat.lightContext = true;
     console.log('[build-config] Heartbeat: light context mode enabled (skips bootstrap injection)');
   }
+
+  // --- Compaction settings ---
+  // Post-compaction section re-injection: ensures critical AGENTS.md sections
+  // survive context compaction in long-running sessions and automated workflows.
+  config.agents.defaults.compaction = config.agents.defaults.compaction || {};
+  config.agents.defaults.compaction.postCompactionSections = [
+    'Every Session', 'Safety', 'Skills',
+  ];
+  console.log('[build-config] Compaction: post-compaction sections configured');
+
+  // Re-index memory embeddings after compaction (v2026.3.12+) so memory_search
+  // stays accurate across long sessions.
+  config.agents.defaults.compaction.postIndexSync = true;
 
   if (process.env.LLM_SUBAGENT_MODEL) {
     config.agents.defaults.subagents = config.agents.defaults.subagents || {};
@@ -320,6 +335,9 @@ function buildConfig() {
     // Groups require mention by default
     config.channels.telegram.groups = config.channels.telegram.groups || {};
     config.channels.telegram.groups['*'] = { requireMention: true };
+
+    // Suppress error messages in chat (v2026.3.22+) — errors still appear in gateway logs
+    config.channels.telegram.silentErrorReplies = true;
 
     // Streaming mode: off (default), partial, block, progress
     // progress shows tool execution steps in real-time without draft flashing

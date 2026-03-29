@@ -394,11 +394,16 @@ fi
 #               (we deleted it at line 310 since full exec doesn't use allowlists,
 #                but the gateway still creates it for internal state tracking)
 # Always harden the directory, regardless of whether exec-approvals file exists.
-# At Tier 2+ the gateway may try to create exec-approvals.json at runtime for
-# internal state tracking — it will get EACCES but this is non-fatal (the gateway
-# logs a warning and continues). The alternative (770) was overly permissive.
+# Tier 0-1: 750 — gateway can traverse+read but not create files (entrypoint deploys the file).
+# Tier 2+:  770 — gateway must create exec-approvals.json at runtime for internal state tracking.
+#   v2026.3.23+ made this mandatory: EACCES on the approvals file now blocks all exec calls.
+#   At Tier 2 exec is already unrestricted, so group-write on this dir doesn't weaken security.
 chown root:openclaw /home/openclaw/.openclaw
-chmod 750 /home/openclaw/.openclaw
+if [ "$SECURITY_TIER" -ge 2 ] 2>/dev/null; then
+  chmod 770 /home/openclaw/.openclaw
+else
+  chmod 750 /home/openclaw/.openclaw
+fi
 
 if [ -f "$APPROVALS_HOME" ]; then
   chown root:openclaw "$APPROVALS_HOME"
@@ -471,21 +476,35 @@ trap 'rm -f "$SECRETS_ENV_FILE"' EXIT
 # Collect all secret env vars into a sourceable file
 install -m 600 /dev/null "$SECRETS_ENV_FILE"
 
-# LLM provider keys
-for key in ANTHROPIC_API_KEY OPENAI_API_KEY GOOGLE_AI_API_KEY OPENROUTER_API_KEY \
-           VERCEL_GATEWAY_API_KEY LLM_API_KEY GROQ_API_KEY TOGETHER_API_KEY \
-           FIREWORKS_API_KEY ZAI_API_KEY KIMI_API_KEY MOONSHOT_API_KEY \
-           MINIMAX_API_KEY DEEPSEEK_API_KEY XAI_API_KEY MISTRAL_API_KEY \
-           VENICE_API_KEY CLOUDFLARE_API_KEY AWS_ACCESS_KEY_ID \
-           AWS_SECRET_ACCESS_KEY AWS_REGION; do
+# Dynamic provider keys — extract from OpenClaw's own provider-env-vars module.
+# This auto-discovers all API keys, tokens, and plan keys that OpenClaw recognises,
+# so new providers added upstream are passed through without entrypoint changes.
+OPENCLAW_PROVIDER_ENV_FILE=$(find /usr/local/lib/node_modules/openclaw/dist/ -maxdepth 1 -name 'provider-env-vars-*.js' -print -quit 2>/dev/null)
+if [ -n "$OPENCLAW_PROVIDER_ENV_FILE" ]; then
+  DYNAMIC_KEYS=$(grep -oE '[A-Z][A-Z0-9_]*_(API_KEY|TOKEN|OAUTH_TOKEN|KEY|PLAN_KEY)' "$OPENCLAW_PROVIDER_ENV_FILE" | sort -u)
+  for key in $DYNAMIC_KEYS; do
+    val="$(eval echo "\${${key}:-}")"
+    [ -n "$val" ] && printf '%s=%s\n' "$key" "$val" >> "$SECRETS_ENV_FILE"
+  done
+  echo "[entrypoint] Provider keys: extracted $(echo "$DYNAMIC_KEYS" | wc -w | xargs) known vars from OpenClaw"
+else
+  echo "[entrypoint] WARNING: Could not find provider-env-vars module, falling back to static list"
+  for key in ANTHROPIC_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY GROQ_API_KEY \
+             TOGETHER_API_KEY DEEPSEEK_API_KEY XAI_API_KEY MISTRAL_API_KEY \
+             MINIMAX_API_KEY MINIMAX_CODE_PLAN_KEY KIMI_API_KEY MOONSHOT_API_KEY \
+             VENICE_API_KEY DEEPGRAM_API_KEY GEMINI_API_KEY GOOGLE_API_KEY; do
+    val="$(eval echo "\${${key}:-}")"
+    [ -n "$val" ] && printf '%s=%s\n' "$key" "$val" >> "$SECRETS_ENV_FILE"
+  done
+fi
+
+# Template-specific keys not in OpenClaw's provider list
+for key in GOOGLE_AI_API_KEY LLM_API_KEY VERCEL_GATEWAY_API_KEY \
+           FIREWORKS_API_KEY CLOUDFLARE_API_KEY \
+           AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION; do
   val="$(eval echo "\${${key}:-}")"
   [ -n "$val" ] && printf '%s=%s\n' "$key" "$val" >> "$SECRETS_ENV_FILE"
 done
-
-# Transcription provider
-if [ -n "${DEEPGRAM_API_KEY:-}" ]; then
-  printf '%s=%s\n' "DEEPGRAM_API_KEY" "$DEEPGRAM_API_KEY" >> "$SECRETS_ENV_FILE"
-fi
 
 # Channel tokens
 for key in TELEGRAM_BOT_TOKEN DISCORD_BOT_TOKEN SLACK_BOT_TOKEN SLACK_APP_TOKEN; do
@@ -496,11 +515,6 @@ done
 # Gateway token (only if user-specified; random tokens are written literally)
 if [ -n "${GATEWAY_TOKEN:-}" ]; then
   printf 'GATEWAY_TOKEN=%s\n' "$GATEWAY_TOKEN" >> "$SECRETS_ENV_FILE"
-fi
-
-# Brave search
-if [ -n "${BRAVE_API_KEY:-}" ]; then
-  printf 'BRAVE_API_KEY=%s\n' "$BRAVE_API_KEY" >> "$SECRETS_ENV_FILE"
 fi
 
 # Extra env keys (for custom binaries)
