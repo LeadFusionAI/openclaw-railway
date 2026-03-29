@@ -306,7 +306,7 @@ function buildConfig() {
 
   // Re-index memory embeddings after compaction (v2026.3.12+) so memory_search
   // stays accurate across long sessions.
-  config.agents.defaults.compaction.postIndexSync = true;
+  config.agents.defaults.compaction.postIndexSync = 'async';
 
   if (process.env.LLM_SUBAGENT_MODEL) {
     config.agents.defaults.subagents = config.agents.defaults.subagents || {};

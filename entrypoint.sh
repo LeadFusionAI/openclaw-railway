@@ -617,7 +617,7 @@ start_gateway() {
     OPENCLAW_STATE_DIR=/data/.openclaw \
     NODE_ENV=production \
     "${SECRETS_ARGS[@]}" \
-    su openclaw -c "cd /data/workspace && openclaw gateway run --port ${GATEWAY_PORT} 2>&1" &
+    su openclaw -c "cd /data/workspace && openclaw gateway run --port ${GATEWAY_PORT} --compact 2>&1" | node /app/src/log-bridge.js ${LOG_BRIDGE_ARGS} &
   GATEWAY_PID=$!
 
   sleep 3
