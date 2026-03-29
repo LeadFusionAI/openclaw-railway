@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEST_CASES_FILE="$SCRIPT_DIR/test-cases.json"
 RESULTS_DIR="$SCRIPT_DIR/results"
 TIMEOUT_SECONDS=120
-SESSION_ID="test-run-$(date +%s)"
+# Session ID generated per-test inside the loop (isolated sessions)
 
 # Colors (terminal only, stripped in markdown output)
 RED='\033[0;31m'
@@ -125,7 +125,7 @@ echo -e "${BOLD}Security Test Harness${RESET}"
 echo -e "Target:  ${CYAN}$TARGET${RESET}${CONTAINER:+ (container: $CONTAINER)}"
 echo -e "Tests:   ${CYAN}$TEST_COUNT${RESET}${PHASE_FILTER:+ (phase: $PHASE_FILTER)}${TEST_FILTER:+ (test: $TEST_FILTER)}"
 echo -e "Model:   ${CYAN}${MODEL_OVERRIDE:-default}${RESET}"
-echo -e "Session: ${CYAN}$SESSION_ID${RESET} (fresh per run)"
+echo -e "Session: ${CYAN}isolated per test${RESET}"
 echo -e "Timeout: ${CYAN}${TIMEOUT_SECONDS}s${RESET} per test"
 echo ""
 
@@ -144,11 +144,11 @@ run_agent_command() {
 
   if [[ "$TARGET" == "railway" ]]; then
     railway ssh -- \
-      "openclaw agent --agent main --session-id \"${SESSION_ID}\" --message \"${escaped_message}\" --json 2>/dev/null" \
+      "openclaw agent --agent main --session-id \"${SESSION_ID}\" --message \"${escaped_message}\" --json" \
       >"$tmpfile" 2>/dev/null &
   else
     docker exec "$CONTAINER" \
-      sh -c "openclaw agent --agent main --session-id \"${SESSION_ID}\" --message \"${escaped_message}\" --json 2>/dev/null" \
+      sh -c "openclaw agent --agent main --session-id \"${SESSION_ID}\" --message \"${escaped_message}\" --json" \
       >"$tmpfile" 2>/dev/null &
   fi
   local pid=$!
@@ -178,7 +178,7 @@ run_agent_command() {
 extract_response() {
   local raw_output="$1"
   node -e "
-    const raw = process.argv[1];
+    const raw = process.argv[1].replace(/\r/g, '');
     // Find the last JSON object in output (skip any log lines)
     const lines = raw.split('\n');
     let jsonStr = '';
@@ -209,6 +209,7 @@ extract_response() {
 }
 
 # ── Main Test Loop ────────────────────────────────────────────────────
+RUN_START=$(date +%s)
 TIMESTAMP=$(date '+%Y-%m-%d-%H-%M')
 # Build filename: timestamp-target[-container][-model].md
 MODEL_SLUG=""
@@ -269,7 +270,7 @@ while IFS= read -r test_json; do
   TEST_ID=$(node -e "console.log(JSON.parse(process.argv[1]).id)" "$test_json")
   TEST_NAME=$(node -e "console.log(JSON.parse(process.argv[1]).name)" "$test_json")
   TEST_PHASE=$(node -e "console.log(JSON.parse(process.argv[1]).phase)" "$test_json")
-  TEST_MESSAGE=$(node -e "console.log(JSON.parse(process.argv[1]).message)" "$test_json")
+  TEST_MESSAGE=$(node -e "const t=JSON.parse(process.argv[1]); console.log(t.message || (t.messages ? t.messages[t.messages.length-1] : ''))" "$test_json")
   TEST_EXPECT=$(node -e "console.log(JSON.parse(process.argv[1]).expect)" "$test_json")
   TEST_BLOCK=$(node -e "console.log(JSON.stringify(JSON.parse(process.argv[1]).indicators.block))" "$test_json")
   TEST_LEAK=$(node -e "console.log(JSON.stringify(JSON.parse(process.argv[1]).indicators.leak))" "$test_json")
@@ -304,6 +305,7 @@ while IFS= read -r test_json; do
         expect: process.argv[4],
         classification: 'SKIPPED',
         duration_s: 0,
+        session_id: null,
         matched_block: [],
         matched_leak: [],
         response_snippet: '',
@@ -314,9 +316,38 @@ while IFS= read -r test_json; do
     continue
   fi
 
+  # ── Per-test session ID (isolated sessions) ────────────────────
+  SESSION_ID="test-${TEST_ID}-$(date +%s)"
+
+  # ── Optional setup step (e.g., write file to workspace) ────────
+  TEST_SETUP=$(node -e "const t=JSON.parse(process.argv[1]); console.log(t.setup || '')" "$test_json")
+  if [[ -n "$TEST_SETUP" ]]; then
+    echo -e "  ${DIM}Running setup...${RESET}"
+    run_agent_command "$TEST_SETUP" >/dev/null
+  fi
+
+  # ── Multi-turn support ─────────────────────────────────────────
+  # If test has "messages" array, send each in sequence (same session).
+  # Judge only the final response. Single "message" field = legacy behavior.
+  TEST_MESSAGES=$(node -e "const t=JSON.parse(process.argv[1]); console.log(JSON.stringify(t.messages || null))" "$test_json")
+
   # Run the test
   START_TIME=$(date +%s)
-  RAW_OUTPUT=$(run_agent_command "$TEST_MESSAGE")
+  if [[ "$TEST_MESSAGES" != "null" ]]; then
+    # Multi-turn: send all but last, discard responses
+    MSG_COUNT=$(node -e "console.log(JSON.parse(process.argv[1]).length)" "$TEST_MESSAGES")
+    for ((mi=0; mi<MSG_COUNT-1; mi++)); do
+      MSG_I=$(node -e "console.log(JSON.parse(process.argv[1])[$mi])" "$TEST_MESSAGES" "$mi")
+      echo -e "  ${DIM}Turn $((mi+1))/$MSG_COUNT...${RESET}"
+      run_agent_command "$MSG_I" >/dev/null
+    done
+    # Send final message, capture response
+    LAST_MSG=$(node -e "const m=JSON.parse(process.argv[1]); console.log(m[m.length-1])" "$TEST_MESSAGES")
+    echo -e "  ${DIM}Turn $MSG_COUNT/$MSG_COUNT (judged)...${RESET}"
+    RAW_OUTPUT=$(run_agent_command "$LAST_MSG")
+  else
+    RAW_OUTPUT=$(run_agent_command "$TEST_MESSAGE")
+  fi
   END_TIME=$(date +%s)
   DURATION=$((END_TIME - START_TIME))
 
@@ -399,12 +430,13 @@ $(printf '%s' "$RESPONSE_TEXT" | head -c 500)
       classification: process.argv[5],
       reasoning: process.argv[6],
       duration_s: parseInt(process.argv[7], 10),
+      session_id: process.argv[9],
       matched_block: [],
       matched_leak: [],
       response_snippet: process.argv[8].slice(0, 200),
       response_full: process.argv[8]
     }));
-  " "$TEST_ID" "$TEST_NAME" "$TEST_PHASE" "$TEST_EXPECT" "$CLASSIFICATION" "$REASONING" "$DURATION" "$RESPONSE_TEXT" >> "$JSON_ENTRIES_TMP"
+  " "$TEST_ID" "$TEST_NAME" "$TEST_PHASE" "$TEST_EXPECT" "$CLASSIFICATION" "$REASONING" "$DURATION" "$RESPONSE_TEXT" "$SESSION_ID" >> "$JSON_ENTRIES_TMP"
 done < <(node -e "JSON.parse(process.argv[1]).forEach(t => console.log(JSON.stringify(t)))" "$TEST_DATA")
 
 # ── Generate Results Markdown ─────────────────────────────────────────
@@ -420,7 +452,7 @@ DATESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
   echo "**Model (detected):** ${DETECTED_MODEL:-_(not detected)_}"
   echo "**Phase filter:** ${PHASE_FILTER:-all}"
   echo "**Test filter:** ${TEST_FILTER:-none}"
-  echo "**Session:** \`$SESSION_ID\` (fresh per run, shared across tests within run)"
+  echo "**Session:** isolated per test (unique session ID per test case)"
   echo ""
   echo "## Results"
   echo ""
@@ -443,12 +475,9 @@ DATESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
   echo ""
   echo "## Notes"
   echo ""
-  echo "- **Intra-run contamination:** Tests run sequentially in a single session."
-  echo "  Earlier attack probes cause the agent to become progressively more defensive."
-  echo "  Later tests may see terse refusals or the agent ignoring the prompt entirely."
-  echo "  Tests that modify files (P3-T3, P3-T5) can affect subsequent reads (P3-T6)."
-  echo "- **Cross-run isolation:** Each run uses a unique session key (\`--session-id\`),"
-  echo "  so repeated runs do NOT accumulate defensive context from prior runs."
+  echo "- **Session isolation:** Each test gets a unique session ID (\`test-{ID}-{timestamp}\`)."
+  echo "  No intra-run contamination — earlier attack probes do not affect later tests."
+  echo "  Multi-turn tests intentionally share a session across their message sequence."
   echo ""
   echo "## Response Details"
   echo ""
@@ -469,26 +498,26 @@ node -e "
     container: process.argv[3] || null,
     model_override: process.argv[4] || null,
     model_detected: process.argv[5] || null,
-    session_id: process.argv[6],
-    detected_tier: process.argv[7] ? parseInt(process.argv[7], 10) : null,
+    session_isolation: 'per-test',
+    detected_tier: process.argv[6] ? parseInt(process.argv[6], 10) : null,
     summary: {
-      pass: parseInt(process.argv[8], 10),
-      fail: parseInt(process.argv[9], 10),
-      unknown: parseInt(process.argv[10], 10),
-      skipped: parseInt(process.argv[11], 10),
-      error: parseInt(process.argv[12], 10),
-      total: parseInt(process.argv[13], 10)
+      pass: parseInt(process.argv[7], 10),
+      fail: parseInt(process.argv[8], 10),
+      unknown: parseInt(process.argv[9], 10),
+      skipped: parseInt(process.argv[10], 10),
+      error: parseInt(process.argv[11], 10),
+      total: parseInt(process.argv[12], 10)
     },
     tests: entries
   };
-  fs.writeFileSync(process.argv[14], JSON.stringify(result, null, 2) + '\n');
+  fs.writeFileSync(process.argv[13], JSON.stringify(result, null, 2) + '\n');
 " "$JSON_ENTRIES_TMP" "$TARGET" "$CONTAINER" "$MODEL_OVERRIDE" "$DETECTED_MODEL" \
-  "$SESSION_ID" "$DETECTED_TIER" "$PASS_COUNT" "$FAIL_COUNT" "$UNKNOWN_COUNT" "$SKIPPED_COUNT" "$ERROR_COUNT" \
+  "$DETECTED_TIER" "$PASS_COUNT" "$FAIL_COUNT" "$UNKNOWN_COUNT" "$SKIPPED_COUNT" "$ERROR_COUNT" \
   "$TOTAL" "$RESULTS_JSON_FILE"
 
 # ── Final Summary ─────────────────────────────────────────────────────
 echo ""
-echo -e "${BOLD}Done.${RESET} $TOTAL tests in $(($(date +%s) - START_TIME))s"
+echo -e "${BOLD}Done.${RESET} $TOTAL tests in $(($(date +%s) - RUN_START))s"
 echo -e "  ${GREEN}PASS:${RESET}    $PASS_COUNT"
 echo -e "  ${RED}FAIL:${RESET}    $FAIL_COUNT"
 echo -e "  ${YELLOW}UNKNOWN:${RESET} $UNKNOWN_COUNT"
