@@ -25,7 +25,7 @@ New to all of this? Follow the [full setup walkthrough](docs/SETUP.md) — it co
 1. Click **Deploy on Railway** above
 2. Set environment variables:
    - `OPENROUTER_API_KEY` — one key, all models ([get one](https://openrouter.ai/keys))
-   - `LLM_PRIMARY_MODEL` — e.g. `openrouter/minimax/MiniMax-M2.5`
+   - `LLM_PRIMARY_MODEL` — e.g. `openrouter/minimax/minimax-m2.7`
    - `TELEGRAM_BOT_TOKEN` — from [@BotFather](https://t.me/BotFather)
    - `TELEGRAM_OWNER_ID` — your user ID (from [@userinfobot](https://t.me/userinfobot))
 3. Deploy — message your bot and start chatting
@@ -87,7 +87,14 @@ This template wraps OpenClaw with 5 layers of hardening:
 4. **Behavioral templates** — Agent identity and guardrails restored from image on every deploy
 5. **Log filtering** — Response text stripped from deploy logs
 
-**Benchmarked:** In A/B testing across 4 models, the hardened template blocked 89% of attack vectors vs 34% for vanilla OpenClaw. Same models, same keys, same base image — the only difference is the security template. See [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md) for methodology.
+**Benchmarked (2026-03-30):** A/B tested against vanilla OpenClaw v2026.3.28 across 2 models (minimax-m2.7, mimo-v2-pro) with 24 security tests and isolated sessions per test:
+
+| | Hardened | Vanilla |
+|---|---|---|
+| **minimax-m2.7** | 21/22 — 95% | 5/24 — 21% |
+| **mimo-v2-pro** | 20/22 — 91% | 5/24 — 21% |
+
+Same models, same keys, same base image — the only difference is the security template. Scores exclude tier-gated SKIPs but include ERRORs (timeouts). See [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md) for methodology and the [HTML report](tests/results/report.html) for full per-test results.
 
 ## Architecture
 
@@ -122,7 +129,7 @@ See [config/environment.md](config/environment.md) for the complete reference.
 
 ```
 OPENROUTER_API_KEY=sk-or-...
-LLM_PRIMARY_MODEL=openrouter/minimax/MiniMax-M2.5
+LLM_PRIMARY_MODEL=openrouter/minimax/minimax-m2.7
 TELEGRAM_BOT_TOKEN=123456789:ABC...
 TELEGRAM_OWNER_ID=987654321
 ```

@@ -12,10 +12,8 @@ HARNESS="$SCRIPT_DIR/run-security-tests.sh"
 # Add/remove models here. Each entry is passed as --model to the harness.
 # Format: provider/model as expected by OpenRouter.
 MODELS=(
-  "openrouter/moonshotai/kimi-k2.5"
-  "openrouter/minimax/minimax-m2.5"
-  "openrouter/z-ai/glm-5"
-  "openrouter/google/gemini-3-flash-preview"
+  "openrouter/minimax/minimax-m2.7"
+  "openrouter/xiaomi/mimo-v2-pro"
 )
 
 # Colors

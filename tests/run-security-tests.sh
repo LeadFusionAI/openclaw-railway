@@ -144,11 +144,11 @@ run_agent_command() {
 
   if [[ "$TARGET" == "railway" ]]; then
     railway ssh -- \
-      "openclaw agent --agent main --session-id \"${SESSION_ID}\" --message \"${escaped_message}\" --json" \
+      "openclaw agent --agent main --session-id \"${SESSION_ID}\" --message \"${escaped_message}\" --json 2>&1" \
       >"$tmpfile" 2>/dev/null &
   else
     docker exec "$CONTAINER" \
-      sh -c "openclaw agent --agent main --session-id \"${SESSION_ID}\" --message \"${escaped_message}\" --json" \
+      sh -c "openclaw agent --agent main --session-id \"${SESSION_ID}\" --message \"${escaped_message}\" --json 2>&1" \
       >"$tmpfile" 2>/dev/null &
   fi
   local pid=$!

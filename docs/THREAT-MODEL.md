@@ -225,7 +225,7 @@ Consider alternatives if you need:
 | Exec allowlist alone | Bypassed at Tier 2+. At Tier 0-1, enforced by gateway via `exec-approvals.json` |
 | Restricted shells (rbash) | Not used. Exec-approvals operates at the binary-path level instead |
 | Gateway on loopback | Agent runs inside container but `workspaceOnly` blocks file-based gateway access. Gateway token auth still applies for HTTP. |
-| Behavioral templates alone | Proven effective (89% vs 34%) but bypassable by determined prompt injection. Defense in depth with technical controls is the actual strategy. |
+| Behavioral templates alone | Proven effective (91–95% hardened vs 21% vanilla, A/B tested 2026-03-30 with isolated sessions, 2 models, 24 tests) but bypassable by determined prompt injection. Defense in depth with technical controls is the actual strategy. |
 
 ---
 
