@@ -287,8 +287,7 @@ jobs:
 
           - [ ] Read [changelog / release notes](https://github.com/openclaw/openclaw/releases) for breaking changes
           - [ ] Security advisories (check for OC-XX format CVEs)
-          - [ ] Check if `tools.web.urlAllowlist` has re-landed ([PR #19042](https://github.com/openclaw/openclaw/pull/19042))
-          - [ ] Update MEMORY.md with upstream changes
+          - [ ] Check if new config fields need env var exposure (e.g. `tools.web.urlAllowlist`)
 
           ## Action
 
