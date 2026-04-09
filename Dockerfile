@@ -15,7 +15,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 # Install OpenClaw globally (always latest — busts cache via Railway redeploy)
-RUN npm install -g openclaw@latest
+RUN npm install -g openclaw@2026.4.8
 
 # Create non-root user
 RUN groupadd -g 1001 openclaw \
