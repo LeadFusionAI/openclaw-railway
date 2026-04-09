@@ -484,19 +484,29 @@ install -m 600 /dev/null "$SECRETS_ENV_FILE"
 # This auto-discovers all API keys, tokens, and plan keys that OpenClaw recognises,
 # so new providers added upstream are passed through without entrypoint changes.
 OPENCLAW_PROVIDER_ENV_FILE=$(find /usr/local/lib/node_modules/openclaw/dist/ -maxdepth 1 -name 'provider-env-vars-*.js' -print -quit 2>/dev/null)
+DYNAMIC_KEYS=""
 if [ -n "$OPENCLAW_PROVIDER_ENV_FILE" ]; then
   DYNAMIC_KEYS=$(grep -oE '[A-Z][A-Z0-9_]*_(API_KEY|TOKEN|OAUTH_TOKEN|KEY|PLAN_KEY)' "$OPENCLAW_PROVIDER_ENV_FILE" | sort -u)
+fi
+
+DYNAMIC_COUNT=$(echo "$DYNAMIC_KEYS" | grep -c '[A-Z]' 2>/dev/null || echo 0)
+
+if [ "$DYNAMIC_COUNT" -gt 0 ]; then
   for key in $DYNAMIC_KEYS; do
     val="$(eval echo "\${${key}:-}")"
     [ -n "$val" ] && printf '%s=%s\n' "$key" "$val" >> "$SECRETS_ENV_FILE"
   done
-  echo "[entrypoint] Provider keys: extracted $(echo "$DYNAMIC_KEYS" | wc -w | xargs) known vars from OpenClaw"
+  echo "[entrypoint] Provider keys: extracted ${DYNAMIC_COUNT} known vars from OpenClaw"
 else
-  echo "[entrypoint] WARNING: Could not find provider-env-vars module, falling back to static list"
-  for key in ANTHROPIC_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY GROQ_API_KEY \
-             TOGETHER_API_KEY DEEPSEEK_API_KEY XAI_API_KEY MISTRAL_API_KEY \
-             MINIMAX_API_KEY MINIMAX_CODE_PLAN_KEY KIMI_API_KEY MOONSHOT_API_KEY \
-             VENICE_API_KEY DEEPGRAM_API_KEY GEMINI_API_KEY GOOGLE_API_KEY; do
+  if [ -n "$OPENCLAW_PROVIDER_ENV_FILE" ]; then
+    echo "[entrypoint] WARNING: provider-env-vars module found but 0 keys extracted — using static fallback"
+  else
+    echo "[entrypoint] WARNING: Could not find provider-env-vars module — using static fallback"
+  fi
+  for key in GOOGLE_AI_API_KEY LLM_API_KEY VERCEL_GATEWAY_API_KEY \
+           FIREWORKS_API_KEY CLOUDFLARE_API_KEY \
+           AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION \
+           AGENTMAIL_API_KEY; do
     val="$(eval echo "\${${key}:-}")"
     [ -n "$val" ] && printf '%s=%s\n' "$key" "$val" >> "$SECRETS_ENV_FILE"
   done
