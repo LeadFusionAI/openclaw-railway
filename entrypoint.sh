@@ -438,7 +438,7 @@ if [ -f "$CONFIG_FILE" ]; then
   # needs to write to these at runtime (devices, cron, sessions, canvas, etc).
   # We create them before locking the parent dir so the gateway doesn't need
   # mkdir permission on /data/.openclaw itself.
-  GATEWAY_DIRS="agents canvas cron devices identity sessions"
+  GATEWAY_DIRS="agents canvas completions cron devices identity media sessions telegram"
   for dir in $GATEWAY_DIRS; do
     mkdir -p "/data/.openclaw/$dir"
     chown openclaw:openclaw "/data/.openclaw/$dir"
@@ -489,7 +489,7 @@ if [ -n "$OPENCLAW_PROVIDER_ENV_FILE" ]; then
   DYNAMIC_KEYS=$(grep -oE '[A-Z][A-Z0-9_]*_(API_KEY|TOKEN|OAUTH_TOKEN|KEY|PLAN_KEY)' "$OPENCLAW_PROVIDER_ENV_FILE" | sort -u)
 fi
 
-DYNAMIC_COUNT=$(echo "$DYNAMIC_KEYS" | grep -c '[A-Z]' 2>/dev/null || echo 0)
+DYNAMIC_COUNT=$(printf '%s' "$DYNAMIC_KEYS" | grep -c '[A-Z]' 2>/dev/null || true) DYNAMIC_COUNT=${DYNAMIC_COUNT:-0}
 
 if [ "$DYNAMIC_COUNT" -gt 0 ]; then
   for key in $DYNAMIC_KEYS; do
