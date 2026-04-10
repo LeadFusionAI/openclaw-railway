@@ -515,7 +515,9 @@ fi
 # Template-specific keys not in OpenClaw's provider list
 for key in GOOGLE_AI_API_KEY LLM_API_KEY VERCEL_GATEWAY_API_KEY \
            FIREWORKS_API_KEY CLOUDFLARE_API_KEY \
-           AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION; do
+           AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION \
+           AGENTMAIL_API_KEY \
+           TWILIO_ACCOUNT_SID TWILIO_AUTH_TOKEN TWILIO_PHONE_NUMBER; do
   val="$(eval echo "\${${key}:-}")"
   [ -n "$val" ] && printf '%s=%s\n' "$key" "$val" >> "$SECRETS_ENV_FILE"
 done
