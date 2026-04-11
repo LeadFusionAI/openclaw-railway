@@ -749,6 +749,18 @@ else
 fi
 
 # -----------------------------------------------------------------------------
+# 5b. Start SMS webhook listener (if script exists on persistent volume)
+# -----------------------------------------------------------------------------
+if [ -f /data/workspace/scripts/sms-webhook.js ]; then
+  SMS_WEBHOOK_SECRET="${SMS_WEBHOOK_SECRET:-}" \
+  TWILIO_ACCOUNT_SID="${TWILIO_ACCOUNT_SID:-}" \
+  TWILIO_AUTH_TOKEN="${TWILIO_AUTH_TOKEN:-}" \
+  TWILIO_PHONE_NUMBER="${TWILIO_PHONE_NUMBER:-}" \
+  node /data/workspace/scripts/sms-webhook.js &
+  echo "[entrypoint] SMS webhook started on port 3001"
+fi
+
+# -----------------------------------------------------------------------------
 # 6. Start health check server (drops to openclaw user, scrubbed env)
 #    Health server only needs PORT — strip everything else to minimize
 #    what's visible in /proc/self/environ for this process tree.
