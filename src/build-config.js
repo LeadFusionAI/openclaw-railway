@@ -113,6 +113,7 @@ function applySecurityTier(config, tier) {
     config.tools.exec.host = 'gateway';
     config.tools.exec.security = 'full';
     config.tools.exec.ask = 'off';
+    config.tools.fs = { workspaceOnly: false };
     return;
   }
 }
@@ -300,7 +301,7 @@ function buildConfig() {
   // survive context compaction in long-running sessions and automated workflows.
   config.agents.defaults.compaction = config.agents.defaults.compaction || {};
   config.agents.defaults.compaction.postCompactionSections = [
-    'Every Session', 'Safety', 'Skills',
+    'Every Session', 'Safety', 'Skills', 'Your Current Tier' ,
   ];
   console.log('[build-config] Compaction: post-compaction sections configured');
 
