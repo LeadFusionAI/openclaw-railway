@@ -761,6 +761,20 @@ if [ -f /data/workspace/scripts/sms-webhook.js ]; then
 fi
 
 # -----------------------------------------------------------------------------
+# 5c. Start SMS inbox poller (if script exists on persistent volume)
+# -----------------------------------------------------------------------------
+if [ -f /data/workspace/scripts/inbox_poller.py ]; then
+  TWILIO_ACCOUNT_SID="${TWILIO_ACCOUNT_SID:-}" \
+  TWILIO_AUTH_TOKEN="${TWILIO_AUTH_TOKEN:-}" \
+  TWILIO_PHONE_NUMBER="${TWILIO_PHONE_NUMBER:-}" \
+  TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}" \
+  TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID:-7452922357}" \
+  OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}" \
+  python3 /data/workspace/scripts/inbox_poller.py &
+  echo "[entrypoint] SMS inbox poller started"
+fi
+
+# -----------------------------------------------------------------------------
 # 6. Start health check server (drops to openclaw user, scrubbed env)
 #    Health server only needs PORT — strip everything else to minimize
 #    what's visible in /proc/self/environ for this process tree.
